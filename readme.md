@@ -12,3 +12,5 @@ The way we are going to solve this is by allowing faculty members to list equipm
 The types of equipment that would be available could range from oscilloscopes, to art supplies and anything in-between. Anything that students could need to schedule and/or borrow could be included. Obscure items that students may not even know exist could be put up, giving students access to a greater catalogue while also saving the costs of buying them new.
 
 ## Vlogs
+
+-[Vlog 1](https://youtu.be/zJ_2l1cMGKU)
