@@ -1,0 +1,161 @@
+/* Saskatchewan flag theme */
+:root {
+  --primary-color: #007847; /* Green */
+  --secondary-color: #FFCD00; /* Yellow */
+}
+
+/* General body */
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f8f9fa;
+}
+
+/* Headings */
+h1 {
+  text-align: center;
+  color: var(--primary-color);
+}
+
+/* Forms */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Inputs, textarea, select */
+input, textarea, select {
+  padding: 8px;
+  font-size: 16px;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+}
+
+/* Buttons */
+button {
+  cursor: pointer;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 10px;
+  font-weight: bold;
+  border-radius: 5px;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: var(--secondary-color);
+  color: var(--primary-color);
+}
+
+/* Links */
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--secondary-color);
+}
+
+/* Item cards in home page */
+.item-card {
+  border: 2px solid var(--primary-color);
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+  background-color: white;
+  box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+}
+
+.item-card img {
+  max-width: 100%;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+/* Sidebar */
+.sidebar {
+  min-height: 100vh;
+  padding: 1rem;
+  background-color: white;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+.sidebar .nav-link {
+  color: var(--primary-color);
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.sidebar .nav-link:hover {
+  color: var(--secondary-color);
+}
+
+/* Navbar */
+.navbar {
+  min-height: 56px;
+  position: relative;
+}
+
+/* Center navbar brand */
+.navbar .navbar-brand {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+/* Main content */
+.main-content {
+  flex: 1;
+  padding: 20px;
+}
+
+/* Layout adjustments using Bootstrap grid (optional) */
+.container-fluid > .row {
+  min-height: calc(100vh - 56px); /* account for navbar height */
+}
+
+/* Remove unnecessary height rules */
+html, body {
+  height: auto;
+}
+
+
+/* Item cards in home page */
+.item-card {
+  border: 2px solid var(--primary-color);
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+  background-color: white;
+  box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Image inside card */
+.item-card img {
+  width: 200px;       /* fixed width */
+  height: 150px;      /* fixed height */
+  object-fit: cover;  /* maintain aspect ratio, crop if necessary */
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+
+  #itemImage {
+    max-width: 100%;      /* scale down to container width */
+    max-height: 300px;    /* optional: limit height */
+    object-fit: cover;    /* crop/fit nicely */
+    display: block;
+    margin: 0 auto;       /* center the image */
+  }
+
+
+
