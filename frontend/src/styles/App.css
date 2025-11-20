@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+:root {
+  --primary: #007847;
+  --secondary: #FFCD00;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background: #f8f9fa;
+  margin: 0;
+}
+
+.navbar-brand {
+  font-size: 2.5rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 3px;
+}
+
+.btn-primary, .btn-success {
+  border-radius: 12px !important;
+  font-weight: 600;
+}
+
+.card {
+  border-radius: 18px !important;
+  box-shadow: 0 10px 30px rgba(0,120,71,0.15) !important;
+}
+
+.form-control {
+  border-radius: 12px !important;
+}
