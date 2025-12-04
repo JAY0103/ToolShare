@@ -14,3 +14,4 @@ The types of equipment that would be available could range from oscilloscopes, t
 ## Vlogs
 
 -[Vlog 1](https://youtu.be/zJ_2l1cMGKU)
+-[Vlog 2](https://youtu.be/WH_ojDBN3hM)
