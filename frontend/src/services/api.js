@@ -1,4 +1,5 @@
-// src/services/api.js 
+// src/services/api.js
+
 const API_BASE = 'http://localhost:3000';
 
 const apiRequest = async (endpoint, options = {}) => {
@@ -11,19 +12,17 @@ const apiRequest = async (endpoint, options = {}) => {
       ...options.headers,
     },
   });
-
   const data = await res.json();
-
   if (!res.ok) {
     if (res.status === 401 || res.status === 403) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       alert('Session expired. Please login again.');
       window.location.href = '/login';
+      throw new Error(data.error || 'Request failed');
     }
     throw new Error(data.error || 'Request failed');
   }
-
   return data;
 };
 
@@ -34,18 +33,15 @@ export const authService = {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     }),
-
   register: (formData) =>
     apiRequest('/api/register', {
       method: 'POST',
       body: JSON.stringify(formData),
     }),
-
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   },
-
   getCurrentUser: () => apiRequest('/api/getUser'),
 };
 
@@ -57,21 +53,21 @@ export const itemsService = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  deleteItem: (id) =>
+    apiRequest(`/api/items/${id}`, {
+      method: 'DELETE',
+    }),
 };
 
-// BORROW REQUESTS SERVICE 
+// BORROW REQUESTS SERVICE
 export const bookingsService = {
   bookItem: (data) =>
     apiRequest('/api/borrow-requests', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-
   getMyBookings: () => apiRequest('/api/my-requests'),
-
-  
   getRequestedBookings: () => apiRequest('/api/item-requests'),
-
   updateRequestStatus: (id, status) =>
     apiRequest(`/api/borrow-requests/${id}`, {
       method: 'PUT',

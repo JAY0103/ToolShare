@@ -13,7 +13,7 @@ const Navbar = ({ onSearch }) => {
 
   return (
     <div>
-      {/* ONLY ONE TOOLSHARE HEADER */}
+      {/* TOOLSHARE HEADER */}
       <div 
         className="text-white text-center py-4"
         style={{ 

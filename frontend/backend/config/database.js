@@ -48,7 +48,7 @@ const setupDatabase = async () => {
     await conn.query('USE project');
     console.log('Database "project" ready');
 
-    // TABLES ------------------------------------------------------
+    // TABLES
 
     // Users
     await conn.query(`
