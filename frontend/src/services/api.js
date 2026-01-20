@@ -22,9 +22,9 @@ const apiRequest = async (endpoint, options = {}) => {
 };
 
 export const authService = {
-  login: (username, password) => apiRequest('/api/login', {
+  login: (email, password) => apiRequest('/api/login', {
     method: 'POST',
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ email, password })
   }),
 
   register: (formData) => apiRequest('/api/register', {
@@ -48,17 +48,38 @@ export const authService = {
   }
 };
 
+
+
+//
+//
+//
+
 export const itemsService = {
   getItems: () => apiRequest('/api/items').then(d => d.items),
-  addItem: (item) => apiRequest('/api/items', { method: 'POST', body: JSON.stringify(item) })
+  addItem: (item) => apiRequest('/api/items', { method: 'POST', body: JSON.stringify(item) }),
+  editItem: (itemId, item) => apiRequest(`/api/edit-item`, { 
+    method: 'PUT',
+    body: JSON.stringify({
+      item_id: itemId,
+      name: item.name,
+      description: item.description,
+      image_url: item.image_url
+    })
+  })
 };
 
+
+
 export const bookingsService = {
-  bookItem: (data) => apiRequest('/api/borrow-requests', { method: 'POST', body: JSON.stringify(data) }),
+    bookItem: (data) => apiRequest('/api/book-item', { 
+    method: 'POST', 
+    body: JSON.stringify(data) 
+  }),
+
   getMyBookings: () => apiRequest('/api/my-requests').then(d => d.requests),
   getRequestedBookings: () => apiRequest('/api/item-requests').then(d => d.requests),
-  updateRequestStatus: (id, status) => apiRequest(`/api/borrow-requests/${id}`, {
+  updateRequestStatus: (id, status) => apiRequest(`/api/item_status`, {
     method: 'PUT',
-    body: JSON.stringify({ status })
+    body: JSON.stringify({ item_id: id, status })
   })
 };

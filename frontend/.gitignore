@@ -1,0 +1,15 @@
+node_modules/
+
+frontend/node_modules/
+
+backend/node_modules/
+
+.log
+
+.env
+.env.local
+.env.development
+.end.production
+
+.DS_store
+Thumbs.db

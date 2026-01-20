@@ -38,6 +38,15 @@ const Navbar = ({ onSearch }) => {
           />
 
           <div className="ms-auto d-flex gap-3">
+
+              <button 
+              onClick={() => navigate('/home')}
+              className="btn btn-outline-success fw-bold px-4"
+              style={{ borderRadius: '12px' }}
+            >
+              Home
+            </button>
+
             <button 
               onClick={() => navigate('/my-bookings')}
               className="btn btn-outline-success fw-bold px-4"

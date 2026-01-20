@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { itemsService, bookingsService } from '../services/api';
+import Sidebar from '../components/Sidebar';
 
 const BookItem = () => {
   const [searchParams] = useSearchParams();
@@ -8,89 +9,171 @@ const BookItem = () => {
   const navigate = useNavigate();
 
   const [item, setItem] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     item_id: itemId,
     requested_start: '',
     requested_end: '',
-    reason: ''
+    reason: '',
   });
 
   useEffect(() => {
     if (!itemId) {
-      alert('Invalid item');
+      alert('No item selected');
       navigate('/home');
-    } else {
-      fetchItem();
+      return;
     }
+
+    const fetchItem = async () => {
+      try {
+        const items = await itemsService.getItems();
+        const found = items.find(
+          (i) => i.item_id === parseInt(itemId, 10)
+        );
+
+        if (!found) {
+          alert('Item not found or no longer available');
+          navigate('/home');
+          return;
+        }
+
+        setItem(found);
+      } catch (err) {
+        alert('Failed to load item details');
+        navigate('/home');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchItem();
   }, [itemId, navigate]);
 
-  const fetchItem = async () => {
-    try {
-      const allItems = await itemsService.getItems();
-      const found = allItems.find(i => i.item_id === parseInt(itemId));
-      setItem(found);
-    } catch (err) {
-      alert('Item not found');
-      navigate('/home');
-    }
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const isDateRangeValid = () => {
+    const { requested_start, requested_end } = formData;
+
+    if (!requested_start || !requested_end) return false;
+
+    const start = new Date(requested_start);
+    const end = new Date(requested_end);
+    const now = new Date();
+
+    if (start < now) {
+      alert('Start date and time cannot be in the past.');
+      return false;
+    }
+
+    if (end <= start) {
+      alert('End date must be after the start date.');
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!isDateRangeValid()) return;
+
     try {
       await bookingsService.bookItem(formData);
       alert('Borrow request sent successfully!');
       navigate('/my-bookings');
     } catch (err) {
-      alert(err.message || 'Failed to send request');
+      if (err.status === 401 || err.status === 403) {
+        localStorage.clear();
+        alert('Session expired. Please login again.');
+        navigate('/login');
+      } else {
+        alert(err.message || 'Request failed');
+      }
     }
   };
 
-  if (!item) return <div>Loading...</div>;
+  const nowLocal = new Date().toISOString().slice(0, 16);
+
+  if (loading) {
+    return (
+      <div className="app-container">
+        <Sidebar />
+        <div className="content">
+          <p>Loading item...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!item) return null;
 
   return (
-    <div className="p-4">
-      <h2 className="mb-4 text-primary">Request to Borrow</h2>
-      <div className="row">
-        <div className="col-md-6">
-          <div className="card shadow">
+    <div className="app-container">
+      <Sidebar />
+      <div className="content">
+        <h1>Request to Borrow</h1>
+
+        <div className="item-card">
+          {item.image_url && (
             <img
-              src={item.image_url || '/images/default-item.png'}
-              className="card-img-top"
+              src={item.image_url}
               alt={item.name}
-              style={{ height: '300px', objectFit: 'cover' }}
+              className="item-details-image"
             />
-            <div className="card-body">
-              <h4>{item.name}</h4>
-              <p>{item.description}</p>
-              <p><strong>Owner:</strong> {item.owner_name}</p>
-            </div>
-          </div>
+          )}
+
+          <h2>{item.name}</h2>
+          <p>{item.description || 'No description'}</p>
+          <p>Owner: {item.owner_name || 'Unknown'}</p>
         </div>
-        <div className="col-md-6">
-          <form onSubmit={handleSubmit}>
-            <div className="mb-3">
-              <label className="form-label">Start Date & Time *</label>
-              <input type="datetime-local" name="requested_start" className="form-control" onChange={handleChange} required />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">End Date & Time *</label>
-              <input type="datetime-local" name="requested_end" className="form-control" onChange={handleChange} required />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Reason for Borrowing *</label>
-              <textarea name="reason" className="form-control" rows="4" onChange={handleChange} required></textarea>
-            </div>
-            <button type="submit" className="btn btn-success me-2">Send Request</button>
-            <button type="button" onClick={() => navigate('/home')} className="btn btn-secondary">
-              Cancel
-            </button>
-          </form>
-        </div>
+
+        <form onSubmit={handleSubmit} className="request-form">
+          <label>
+            Requested Start:
+            <input
+              type="datetime-local"
+              name="requested_start"
+              value={formData.requested_start}
+              min={nowLocal}
+              onChange={handleChange}
+              required
+            />
+          </label>
+
+          <label>
+            Requested End:
+            <input
+              type="datetime-local"
+              name="requested_end"
+              value={formData.requested_end}
+              min={formData.requested_start || nowLocal}
+              onChange={handleChange}
+              required
+            />
+          </label>
+
+          <label>
+            Reason:
+            <textarea
+              name="reason"
+              value={formData.reason}
+              onChange={handleChange}
+              required
+            />
+          </label>
+
+          <button type="submit" className="primary-button">
+            Submit Request
+          </button>
+        </form>
       </div>
     </div>
   );

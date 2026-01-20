@@ -12,6 +12,7 @@ import AddItem from './pages/AddItem';
 import BookItem from './pages/BookItem';
 import MyBookings from './pages/MyBookings';
 import RequestedBookings from './pages/RequestedBookings';
+import EditItem from './pages/EditItem';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -54,6 +55,7 @@ function App() {
           <Route path="/book-item" element={user ? <BookItem /> : <Navigate to="/login" />} />
           <Route path="/my-bookings" element={user ? <MyBookings /> : <Navigate to="/login" />} />
           <Route path="/requested-bookings" element={user?.user_type === 'Faculty' ? <RequestedBookings /> : <Navigate to="/home" />} />
+          <Route path="/edit-item" element={user?.user_type === 'Faculty' ? <EditItem /> : <Navigate to="/home" />} />
         </Routes>
       </div>
     </Router>
