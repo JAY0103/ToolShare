@@ -1,173 +1,148 @@
 // src/pages/BookItem.jsx
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { itemsService } from '../services/api';
-import Sidebar from '../components/Sidebar';
+import React, { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { itemsService, bookingsService } from "../services/api";
 
 const BookItem = () => {
   const [searchParams] = useSearchParams();
-  const itemId = searchParams.get('item_id');
+  const itemId = searchParams.get("item_id");
   const navigate = useNavigate();
 
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
+
   const [formData, setFormData] = useState({
     item_id: itemId,
-    requested_start: '',
-    requested_end: '',
-    reason: '',
+    requested_start: "",
+    requested_end: "",
+    reason: "",
   });
 
   useEffect(() => {
-    if (!itemId) {
-      alert('No item selected');
-      navigate('/home');
-      return;
-    }
+    const run = async () => {
+      if (!itemId) {
+        alert("No item selected");
+        navigate("/home");
+        return;
+      }
 
-    const fetchItem = async () => {
       try {
-        const response = await itemsService.getItems();
-        const items = response.items || response || [];
-        const foundItem = items.find(
-          (i) => i.item_id === parseInt(itemId)
-        );
-        if (foundItem) {
-          setItem(foundItem);
-        } else {
-          alert('Item not found or no longer available');
-          navigate('/home');
+        const list = await itemsService.getItems();
+        const found = list.find((i) => i.item_id === parseInt(itemId, 10));
+        if (!found) {
+          alert("Item not found");
+          navigate("/home");
+          return;
         }
+        setItem(found);
       } catch (err) {
-        console.error('Failed to load item:', err);
-        alert('Failed to load item details');
-        navigate('/home');
+        alert("Failed to load item details");
+        navigate("/home");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchItem();
+    run();
   }, [itemId, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((p) => ({ ...p, [name]: value }));
+  };
+
+  const isDateRangeValid = () => {
+    const { requested_start, requested_end } = formData;
+    if (!requested_start || !requested_end) return false;
+
+    const start = new Date(requested_start);
+    const end = new Date(requested_end);
+    const now = new Date();
+
+    if (start < now) {
+      alert("Start date/time cannot be in the past.");
+      return false;
+    }
+    if (end <= start) {
+      alert("End must be after start.");
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!isDateRangeValid()) return;
+
     try {
-      const token = localStorage.getItem('token');
-
-      const res = await fetch(
-        'http://localhost:3000/api/borrow-requests',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(formData),
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          localStorage.clear();
-          alert('Session expired. Please login again.');
-          navigate('/login');
-        } else {
-          alert(data.error || 'Request failed');
-        }
-        return;
-      }
-
-      alert('Borrow request sent successfully!');
-      navigate('/my-bookings');
+      await bookingsService.bookItem(formData);
+      alert("Borrow request sent!");
+      navigate("/my-bookings");
     } catch (err) {
-      alert('Network error');
+      alert(err.message || "Request failed");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="app-container">
-        <Sidebar />
-        <div className="content">
-          <p>Loading item...</p>
-        </div>
-      </div>
-    );
-  }
+  const nowLocal = new Date().toISOString().slice(0, 16);
 
-  if (!item) {
-    return null;
-  }
+  if (loading) return <div className="container-fluid px-4 py-4">Loading item...</div>;
+  if (!item) return null;
 
   return (
-    <div className="app-container">
-      <Sidebar />
-      <div className="content">
-        <h1>Request to Borrow</h1>
+    <div className="container-fluid px-4 py-4">
+      <h2 className="fw-bold mb-3">Request to Borrow</h2>
 
-        <div className="item-card">
-          {item.image_url && (
-            <img
-              src={`http://localhost:3000${item.image_url}`}
-              alt={item.name}
-              className="item-details-image"
-            />
-          )}
+      <div className="card p-3 mb-4">
+        {item.image_url && (
+          <img
+            src={`http://localhost:3000${item.image_url}`}
+            alt={item.name}
+            className="item-details-image"
+            onError={(e) => {
+              e.currentTarget.src = "https://via.placeholder.com/400x250?text=Image+Not+Found";
+            }}
+          />
+        )}
 
-          <h2>{item.name}</h2>
-          <p>{item.description || 'No description'}</p>
-          <p>Owner: {item.owner_name || 'Unknown'}</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="request-form">
-          <label>
-            Requested Start:
-            <input
-              type="datetime-local"
-              name="requested_start"
-              value={formData.requested_start}
-              onChange={handleChange}
-              required
-            />
-          </label>
-
-          <label>
-            Requested End:
-            <input
-              type="datetime-local"
-              name="requested_end"
-              value={formData.requested_end}
-              onChange={handleChange}
-              required
-            />
-          </label>
-
-          <label>
-            Reason:
-            <textarea
-              name="reason"
-              value={formData.reason}
-              onChange={handleChange}
-              required
-            />
-          </label>
-
-          <button type="submit" className="primary-button">
-            Submit Request
-          </button>
-        </form>
+        <h4 className="fw-bold">{item.name}</h4>
+        <p className="text-muted">{item.description || "No description"}</p>
+        <p className="text-muted">Owner: {item.owner_name || "Unknown"}</p>
       </div>
+
+      <form onSubmit={handleSubmit} className="request-form">
+        <label>
+          Requested Start:
+          <input
+            type="datetime-local"
+            name="requested_start"
+            value={formData.requested_start}
+            min={nowLocal}
+            onChange={handleChange}
+            required
+          />
+        </label>
+
+        <label>
+          Requested End:
+          <input
+            type="datetime-local"
+            name="requested_end"
+            value={formData.requested_end}
+            min={formData.requested_start || nowLocal}
+            onChange={handleChange}
+            required
+          />
+        </label>
+
+        <label>
+          Reason:
+          <textarea name="reason" value={formData.reason} onChange={handleChange} required />
+        </label>
+
+        <button type="submit" className="primary-button">
+          Submit Request
+        </button>
+      </form>
     </div>
   );
 };
