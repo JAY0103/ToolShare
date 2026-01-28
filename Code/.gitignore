@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
-Code/frontend/node_modules
-Code/backend/node_modules
+Code/frontend/node_modules/
+Code/backend/node_modules/
 
 # Logs
 *.log
