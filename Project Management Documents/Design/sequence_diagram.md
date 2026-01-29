@@ -43,7 +43,7 @@ sequenceDiagram
   %% BROWSE & AVAILABILITY
   %% -------------------------
   rect rgba(220, 255, 220, 0.35)
-    Note over Student,FE: Browse Items + Optional Availability Filter
+    Note over Student,FE: Browse Items + Availability Filter
     Student->>FE: Open Browse Items
     FE->>API: GET /api/items (JWT)
     API->>DB: SELECT items + owner info
