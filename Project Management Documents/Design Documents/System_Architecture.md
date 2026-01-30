@@ -5,7 +5,6 @@ flowchart TB
   subgraph Users
     S["Student"]
     F["Faculty/Staff"]
-    L["Lab Manager"]
     A["Admin"]
   end
 
@@ -21,13 +20,12 @@ flowchart TB
 
   subgraph External_Services["External Services"]
     EMAIL["Email Provider<br/>SMTP/3rd-party"]
-    CRON["Scheduler/Cron Jobs<br/>Reminders + Overdue"]
+    CRON["Scheduler<br/>Reminders + Overdue"]
   end
 
   %% User access
   S --> UI
   F --> UI
-  L --> UI
   A --> UI
 
   %% Core connections
