@@ -63,18 +63,6 @@ Faculty and staff can list equipment they are willing to share, while students c
 
 ---
 
-## Types of Equipment Supported
-ToolShare is designed to support a wide range of equipment, including but not limited to:
-- Electronics (oscilloscopes, multimeters, microcontrollers)
-- Lab and research equipment
-- Art and design supplies
-- Audio/visual and media equipment
-- Specialized or rarely-used tools
-
-Any resource that requires scheduling or borrowing can be managed through the platform.
-
----
-
 ## Project Background / Business Opportunity
 Universities face increasing budget constraints while still needing to support diverse student projects and research activities. ToolShare improves **resource utilization** by making existing equipment more accessible and visible.
 
@@ -95,15 +83,6 @@ Benefits include:
 
 ---
 
-## Demo & Progress
-A working demo demonstrates:
-- Student booking workflow
-- Faculty approval process
-- Checkout and return lifecycle
-- Notifications and dashboards
-
----
-
 ## Vlogs
 Development progress and design decisions are documented through project vlogs:
 
@@ -117,6 +96,3 @@ Development progress and design decisions are documented through project vlogs:
 - **Isaac Kydd** – Developer  
 
 ---
-
-## License
-This project is developed as part of a university capstone course and is intended for academic and demonstration purposes.
