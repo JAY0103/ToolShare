@@ -1,7 +1,7 @@
 // src/pages/AddItem.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { itemsService } from "../services/api";
 
 const AddItem = () => {
   const [formData, setFormData] = useState({
@@ -29,18 +29,12 @@ const AddItem = () => {
     if (formData.image) data.append("image", formData.image);
 
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post("http://localhost:3000/api/items", data, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.status === 200) {
-        alert("Item added successfully!");
-        navigate("/home");
-      }
+      await itemsService.addItem(data);
+      alert("Item added successfully!");
+      navigate("/home");
     } catch (err) {
-      console.error("Add item error:", err.response?.data || err.message);
-      alert(err.response?.data?.error || "Failed to add item");
+      console.error("Add item error:", err.message);
+      alert(err.message || "Failed to add item");
     }
   };
 
@@ -66,7 +60,7 @@ const AddItem = () => {
           </div>
 
           <div className="mb-3">
-            <label className="form-label">Upload Image (Optional)</label>
+            <label className="form-label">Upload Image *</label>
             <input type="file" name="image" className="form-control" accept="image/*" onChange={handleChange} />
           </div>
 

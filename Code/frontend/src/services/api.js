@@ -73,6 +73,20 @@ export const itemsService = {
     return d.items || [];
   },
 
+  //add item
+  addItem: (formData) =>
+    apiRequest("/api/items", {
+      method: "POST",
+      body: formData,
+    }),
+
+  // edit item
+  editItem: (item_id, { name, description }) =>
+    apiRequest("/api/edit-item", {
+      method: "PUT",
+      body: JSON.stringify({ item_id, name, description }),
+    }),
+  
   // delete item
   deleteItem: (id) =>
     apiRequest(`/api/items/${id}`, {
@@ -99,7 +113,7 @@ export const bookingsService = {
     return d.requests || [];
   },
 
-  // correct approve/reject by request_id
+  //approve/reject by request_id
   updateRequestStatus: (requestId, status) =>
     apiRequest("/api/request-status", {
       method: "PUT",
