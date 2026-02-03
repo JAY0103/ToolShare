@@ -1,4 +1,4 @@
-# ToolShare 🛠️
+# ToolShare 
 
 ## Overview
 **ToolShare** is a university-wide equipment sharing platform designed to help students and staff efficiently discover, book, and manage access to underutilized tools and equipment across campus. The platform centralizes equipment availability, streamlines booking workflows, and improves accountability while reducing unnecessary equipment purchases.
