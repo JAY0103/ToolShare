@@ -1,5 +1,5 @@
 // frontend/src/services/api.js
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const apiRequest = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
@@ -113,10 +113,10 @@ export const bookingsService = {
     return d.requests || [];
   },
 
-  //approve/reject by request_id
-  updateRequestStatus: (requestId, status) =>
-    apiRequest("/api/request-status", {
-      method: "PUT",
-      body: JSON.stringify({ request_id: requestId, status }),
-    }),
+  updateRequestStatus: (requestId, status, decision_note = "") =>
+  apiRequest("/api/request-status", {
+    method: "PUT",
+    body: JSON.stringify({ request_id: requestId, status, decision_note }),
+  }),
+
 };

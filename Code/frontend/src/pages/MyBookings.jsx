@@ -1,6 +1,6 @@
 // src/pages/MyBookings.jsx
 import React, { useEffect, useState } from "react";
-import { bookingsService } from "../services/api";
+import { bookingsService, API_BASE } from "../services/api";
 
 const MyBookings = () => {
   const [requests, setRequests] = useState([]);
@@ -23,17 +23,20 @@ const MyBookings = () => {
   const getImageUrl = (path) => {
     if (!path) return "https://via.placeholder.com/300x200?text=No+Image";
     if (path.startsWith("http")) return path;
-    return `http://localhost:3000${path}`;
+    return `${API_BASE}${path}`;
   };
 
-  if (loading) return <div className="container-fluid px-4 py-4">Loading your requests...</div>;
+  if (loading)
+    return <div className="container-fluid px-4 py-4">Loading your requests...</div>;
 
   return (
     <div className="container-fluid px-4 py-4">
       <h2 className="fw-bold mb-4">My Borrow Requests</h2>
 
       {requests.length === 0 ? (
-        <div className="alert alert-info text-center">You have no borrow requests yet.</div>
+        <div className="alert alert-info text-center">
+          You have no borrow requests yet.
+        </div>
       ) : (
         <div className="row g-4">
           {requests.map((r) => (
@@ -45,24 +48,43 @@ const MyBookings = () => {
                   alt={r.item_name}
                   style={{ height: "180px", objectFit: "cover" }}
                   onError={(e) => {
-                    e.currentTarget.src = "https://via.placeholder.com/300x200?text=Image+Not+Found";
+                    e.currentTarget.src =
+                      "https://via.placeholder.com/300x200?text=Image+Not+Found";
                   }}
                 />
+
                 <div className="card-body">
                   <h5 className="card-title">{r.item_name}</h5>
-                  <p><strong>From:</strong> {new Date(r.requested_start).toLocaleString()}</p>
-                  <p><strong>To:</strong> {new Date(r.requested_end).toLocaleString()}</p>
+                  <p>
+                    <strong>From:</strong>{" "}
+                    {new Date(r.requested_start).toLocaleString()}
+                  </p>
+                  <p>
+                    <strong>To:</strong>{" "}
+                    {new Date(r.requested_end).toLocaleString()}
+                  </p>
 
                   <p>
                     <strong>Status:</strong>{" "}
                     <span
                       className={`badge ms-2 ${
-                        r.status === "Approved" ? "bg-success" : r.status === "Rejected" ? "bg-danger" : "bg-warning"
+                        r.status === "Approved"
+                          ? "bg-success"
+                          : r.status === "Rejected"
+                          ? "bg-danger"
+                          : "bg-warning"
                       }`}
                     >
                       {r.status}
                     </span>
                   </p>
+
+                  {/* Show faculty message if exists */}
+                  {r.rejectionReason && (
+                    <div className="alert alert-info mt-2 mb-0 py-2">
+                      <strong>Message from faculty:</strong> {r.rejectionReason}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
