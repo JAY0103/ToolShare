@@ -6,8 +6,10 @@ const RequestedBookings = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // store decision note per request_id
+  // store rejection note per request_id
   const [notes, setNotes] = useState({});
+  // controls which request is currently showing the rejection textarea
+  const [rejectingId, setRejectingId] = useState(null);
 
   const fetchRequests = async () => {
     try {
@@ -15,6 +17,7 @@ const RequestedBookings = () => {
       const list = Array.isArray(data) ? data : [];
       setRequests(list);
 
+      // preload decision notes if backend already has them
       const initialNotes = {};
       list.forEach((r) => {
         if (r.decision_note) initialNotes[r.request_id] = r.decision_note;
@@ -31,38 +34,61 @@ const RequestedBookings = () => {
     fetchRequests();
   }, []);
 
-  const handleStatus = async (requestId, status) => {
-    try {
-      const noteToSend = status === "Rejected" ? (notes[requestId] || "").trim() : "";
-
-      await bookingsService.updateRequestStatus(requestId, status, noteToSend);
-
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.request_id === requestId
-            ? { ...r, status, decision_note: status === "Rejected" ? noteToSend : null }
-            : r
-        )
-      );
-
-      alert(`Request ${status}!`);
-    } catch (err) {
-      alert(err.message || "Failed to update status");
-    }
-  };
-
   const getImageUrl = (path) => {
-    if (!path) return "https://via.placeholder.com/300x200";
+    if (!path) return "https://via.placeholder.com/400x250?text=No+Image";
     if (path.startsWith("http")) return path;
     return `${API_BASE}${path}`;
   };
 
-  if (loading)
+  const handleApprove = async (requestId) => {
+    try {
+      await bookingsService.updateRequestStatus(requestId, "Approved", "");
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.request_id === requestId
+            ? { ...r, status: "Approved", decision_note: null }
+            : r
+        )
+      );
+      setRejectingId(null);
+      alert("Request Approved!");
+    } catch (err) {
+      alert(err.message || "Failed to approve");
+    }
+  };
+
+  const handleReject = async (requestId) => {
+    const noteToSend = (notes[requestId] || "").trim();
+
+    // require note when rejecting
+    if (!noteToSend) {
+      alert("Please enter a rejection reason before rejecting.");
+      return;
+    }
+
+    try {
+      await bookingsService.updateRequestStatus(requestId, "Rejected", noteToSend);
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.request_id === requestId
+            ? { ...r, status: "Rejected", decision_note: noteToSend }
+            : r
+        )
+      );
+      setRejectingId(null);
+      alert("Request Rejected!");
+    } catch (err) {
+      alert(err.message || "Failed to reject");
+    }
+  };
+
+  if (loading) {
     return (
       <div className="container-fluid px-4 py-4">
         Loading incoming requests...
       </div>
     );
+  }
 
   return (
     <div className="container-fluid px-4 py-4">
@@ -74,13 +100,17 @@ const RequestedBookings = () => {
         <div className="row g-4">
           {requests.map((req) => (
             <div key={req.request_id} className="col-md-6 col-lg-4">
-              <div className="card h-100 shadow-sm">
-                <img
-                  src={getImageUrl(req.image_url)}
-                  className="card-img-top"
-                  alt={req.item_name}
-                  style={{ height: "180px", objectFit: "cover" }}
-                />
+              <div className="item-card shadow-sm">
+                <div className="img-frame">
+                  <img
+                    src={getImageUrl(req.image_url)}
+                    alt={req.item_name || "Item image"}
+                    onError={(e) => {
+                      e.currentTarget.src =
+                        "https://via.placeholder.com/400x250?text=Image+Not+Found";
+                    }}
+                  />
+                </div>
 
                 <div className="card-body d-flex flex-column">
                   <h5 className="card-title">{req.item_name}</h5>
@@ -100,19 +130,19 @@ const RequestedBookings = () => {
                     {new Date(req.requested_end).toLocaleString()}
                   </p>
                   <p>
-                    <strong>Reason:</strong> {req.reason}
+                    <strong>Reason:</strong> {req.reason || "—"}
                   </p>
 
-                  {/* Decision note textarea (useful mainly for Reject) */}
-                  {req.status === "Pending" && (
+                  {/* Only show textbox AFTER faculty clicks Reject (and still pending) */}
+                  {req.status === "Pending" && rejectingId === req.request_id && (
                     <div className="mb-2">
                       <label className="form-label mb-1">
-                        Message to student (optional)
+                        Rejection reason <span className="text-danger">*</span>
                       </label>
                       <textarea
                         className="form-control"
-                        rows={2}
-                        placeholder="Explain why you are rejecting, or give next steps..."
+                        rows={3}
+                        placeholder="Explain why you are rejecting..."
                         value={notes[req.request_id] || ""}
                         onChange={(e) =>
                           setNotes((prev) => ({
@@ -133,24 +163,43 @@ const RequestedBookings = () => {
 
                   <div className="mt-auto d-flex gap-2">
                     {req.status === "Pending" ? (
-                      <>
-                        <button
-                          onClick={() => handleStatus(req.request_id, "Approved")}
-                          className="btn btn-success btn-sm flex-fill"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleStatus(req.request_id, "Rejected")}
-                          className="btn btn-danger btn-sm flex-fill"
-                        >
-                          Reject
-                        </button>
-                      </>
+                      rejectingId === req.request_id ? (
+                        <>
+                          <button
+                            onClick={() => handleReject(req.request_id)}
+                            className="btn btn-danger btn-sm flex-fill"
+                          >
+                            Confirm Reject
+                          </button>
+                          <button
+                            onClick={() => setRejectingId(null)}
+                            className="btn btn-outline-secondary btn-sm flex-fill"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleApprove(req.request_id)}
+                            className="btn btn-success btn-sm flex-fill"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => setRejectingId(req.request_id)}
+                            className="btn btn-danger btn-sm flex-fill"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )
                     ) : (
                       <span
                         className={`badge w-100 py-3 fs-6 ${
-                          req.status === "Approved" ? "bg-success" : "bg-danger"
+                          (req.status || "").toLowerCase() === "approved"
+                            ? "bg-success"
+                            : "bg-danger"
                         }`}
                       >
                         {req.status}

@@ -25,9 +25,11 @@ const Home = ({ searchTerm = "" }) => {
       if (isFaculty) {
         const reqs = await bookingsService.getRequestedBookings();
         setIncomingRequests(Array.isArray(reqs) ? reqs : []);
+        setMyRequests([]); // clear student list
       } else {
         const reqs = await bookingsService.getMyBookings();
         setMyRequests(Array.isArray(reqs) ? reqs : []);
+        setIncomingRequests([]); // clear faculty list
       }
     } catch (e) {
       setAllItems([]);
@@ -40,6 +42,7 @@ const Home = ({ searchTerm = "" }) => {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFaculty]);
 
   const getImageSrc = (image_url) => {
@@ -95,13 +98,36 @@ const Home = ({ searchTerm = "" }) => {
 
   // faculty dashboard cards
   const pendingIncoming = useMemo(() => {
-    return incomingRequests.filter((r) => (r.status || "").toLowerCase() === "pending").length;
+    return incomingRequests.filter(
+      (r) => (r.status || "").toLowerCase() === "pending"
+    ).length;
   }, [incomingRequests]);
 
   // student dashboard cards
   const pendingMine = useMemo(() => {
-    return myRequests.filter((r) => (r.status || "").toLowerCase() === "pending").length;
+    return myRequests.filter((r) => (r.status || "").toLowerCase() === "pending")
+      .length;
   }, [myRequests]);
+
+  // For student: only THEIR bookings due today
+  // For faculty: ALL incoming bookings due today
+  const dueTodayCount = useMemo(() => {
+    const list = isFaculty ? incomingRequests : myRequests;
+
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+    return list.filter((r) => {
+      // Only count approved bookings as "due"
+      const status = (r.status || "").toLowerCase();
+      if (status !== "approved") return false;
+
+      const end = new Date(r.requested_end);
+
+      return end >= startOfDay && end < endOfDay;
+    }).length;
+  }, [isFaculty, incomingRequests, myRequests]);
 
   // apply searchTerm ONLY to recommended list on Home
   const displayedRecommended = useMemo(() => {
@@ -116,13 +142,14 @@ const Home = ({ searchTerm = "" }) => {
 
   return (
     <div className="container-fluid px-4 py-4">
-      {}
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-4">
         <div>
           <h2 className="fw-bold mb-1">
             Welcome{user?.first_name ? `, ${user.first_name}` : ""} 👋
           </h2>
-          <span className={`badge ${isFaculty ? "bg-warning text-dark" : "bg-success"}`}>
+          <span
+            className={`badge ${isFaculty ? "bg-warning text-dark" : "bg-success"}`}
+          >
             {isFaculty ? "Faculty Dashboard" : "Student Dashboard"}
           </span>
         </div>
@@ -155,8 +182,10 @@ const Home = ({ searchTerm = "" }) => {
 
         <div className="col-md-4">
           <div className="card p-3 shadow-sm">
-            <div className="fw-bold text-muted">Booking Due Today</div>
-            <div className="fs-3 fw-bold">{pendingIncoming}</div>
+            <div className="fw-bold text-muted">
+              {isFaculty ? "Bookings Due Today" : "My Bookings Due Today"}
+            </div>
+            <div className="fs-3 fw-bold">{dueTodayCount}</div>
           </div>
         </div>
       </div>
@@ -170,11 +199,6 @@ const Home = ({ searchTerm = "" }) => {
       )}
 
       {/* Faculty info */}
-      {isFaculty && (
-        <div className="alert alert-info">
-          <strong>Faculty:</strong> Use <b>Browse Items</b>, <b>Add Item</b>, and <b>Incoming Requests</b> from the header.
-        </div>
-      )}
 
       {loading ? (
         <div className="text-center py-5">Loading dashboard...</div>
@@ -187,29 +211,28 @@ const Home = ({ searchTerm = "" }) => {
           <div className="items-grid">
             {displayedRecommended.map((item) => (
               <div key={item.item_id} className="item-card shadow-sm">
-              <div className="img-frame">
-                <img
-                  src={getImageSrc(item.image_url)}
-                  alt={item.name}
-                  onError={(e) => {
-                    e.currentTarget.src =
-                      "https://via.placeholder.com/400x250?text=Image+Not+Found";
-                  }}
-                />
+                <div className="img-frame">
+                  <img
+                    src={getImageSrc(item.image_url)}
+                    alt={item.name}
+                    onError={(e) => {
+                      e.currentTarget.src =
+                        "https://via.placeholder.com/400x250?text=Image+Not+Found";
+                    }}
+                  />
+                </div>
+
+                <h5 className="fw-bold mt-2 mb-1">{item.name}</h5>
+                <p className="text-muted mb-2">
+                  {item.description?.substring(0, 90) || "No description"}
+                </p>
+                <button
+                  className="btn btn-success fw-bold"
+                  onClick={() => navigate(`/book-item?item_id=${item.item_id}`)}
+                >
+                  Request
+                </button>
               </div>
-
-              <h5 className="fw-bold mt-2 mb-1">{item.name}</h5>
-              <p className="text-muted mb-2">
-                {item.description?.substring(0, 90) || "No description"}
-              </p>
-              <button
-                className="btn btn-success fw-bold"
-                onClick={() => navigate(`/book-item?item_id=${item.item_id}`)}
-              >
-                Request
-              </button>
-            </div>
-
             ))}
           </div>
         )
