@@ -116,7 +116,7 @@ const Home = ({ searchTerm = "" }) => {
 
   return (
     <div className="container-fluid px-4 py-4">
-      {/* Header (no action buttons here to avoid duplicates with Navbar) */}
+      {}
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-4">
         <div>
           <h2 className="fw-bold mb-1">
@@ -128,7 +128,7 @@ const Home = ({ searchTerm = "" }) => {
         </div>
       </div>
 
-      {/* Stats row (no duplicate navigation buttons) */}
+      {/* Stats row */}
       <div className="row g-3 mb-4">
         <div className="col-md-4">
           <div className="card p-3 shadow-sm">
@@ -155,10 +155,8 @@ const Home = ({ searchTerm = "" }) => {
 
         <div className="col-md-4">
           <div className="card p-3 shadow-sm">
-            <div className="fw-bold text-muted">Tip</div>
-            <div className="text-muted mt-2">
-              Use <b>Browse Items</b> in the header to explore the full list and apply filters.
-            </div>
+            <div className="fw-bold text-muted">Booking Due Today</div>
+            <div className="fs-3 fw-bold">{pendingIncoming}</div>
           </div>
         </div>
       </div>
@@ -189,26 +187,29 @@ const Home = ({ searchTerm = "" }) => {
           <div className="items-grid">
             {displayedRecommended.map((item) => (
               <div key={item.item_id} className="item-card shadow-sm">
+              <div className="img-frame">
                 <img
                   src={getImageSrc(item.image_url)}
                   alt={item.name}
-                  className="item-image"
                   onError={(e) => {
                     e.currentTarget.src =
                       "https://via.placeholder.com/400x250?text=Image+Not+Found";
                   }}
                 />
-                <h5 className="fw-bold mt-2 mb-1">{item.name}</h5>
-                <p className="text-muted mb-2">
-                  {item.description?.substring(0, 90) || "No description"}
-                </p>
-                <button
-                  className="btn btn-success fw-bold"
-                  onClick={() => navigate(`/book-item?item_id=${item.item_id}`)}
-                >
-                  Request
-                </button>
               </div>
+
+              <h5 className="fw-bold mt-2 mb-1">{item.name}</h5>
+              <p className="text-muted mb-2">
+                {item.description?.substring(0, 90) || "No description"}
+              </p>
+              <button
+                className="btn btn-success fw-bold"
+                onClick={() => navigate(`/book-item?item_id=${item.item_id}`)}
+              >
+                Request
+              </button>
+            </div>
+
             ))}
           </div>
         )

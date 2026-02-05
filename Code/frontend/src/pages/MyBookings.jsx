@@ -41,18 +41,17 @@ const MyBookings = () => {
         <div className="row g-4">
           {requests.map((r) => (
             <div key={r.request_id} className="col-md-6 col-lg-4">
-              <div className="card h-100 shadow-sm">
+              <div key={r.item_id} className="item-card shadow-sm">
+              <div className="img-frame">
                 <img
                   src={getImageUrl(r.image_url)}
-                  className="card-img-top"
                   alt={r.item_name}
-                  style={{ height: "180px", objectFit: "cover" }}
                   onError={(e) => {
                     e.currentTarget.src =
-                      "https://via.placeholder.com/300x200?text=Image+Not+Found";
+                      "https://via.placeholder.com/400x250?text=Image+Not+Found";
                   }}
                 />
-
+              </div>
                 <div className="card-body">
                   <h5 className="card-title">{r.item_name}</h5>
                   <p>

@@ -1,7 +1,7 @@
 // src/pages/BookItem.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { itemsService, bookingsService } from "../services/api";
+import { itemsService, bookingsService, API_BASE } from "../services/api";
 
 const BookItem = () => {
   const [searchParams] = useSearchParams();
@@ -29,11 +29,13 @@ const BookItem = () => {
       try {
         const list = await itemsService.getItems();
         const found = list.find((i) => i.item_id === parseInt(itemId, 10));
+
         if (!found) {
           alert("Item not found");
           navigate("/home");
           return;
         }
+
         setItem(found);
       } catch (err) {
         alert("Failed to load item details");
@@ -49,6 +51,12 @@ const BookItem = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((p) => ({ ...p, [name]: value }));
+  };
+
+  const getImageUrl = (path) => {
+    if (!path) return "https://via.placeholder.com/400x250?text=ToolShare";
+    if (path.startsWith("http")) return path;
+    return `${API_BASE}${path}`;
   };
 
   const isDateRangeValid = () => {
@@ -85,64 +93,88 @@ const BookItem = () => {
 
   const nowLocal = new Date().toISOString().slice(0, 16);
 
-  if (loading) return <div className="container-fluid px-4 py-4">Loading item...</div>;
+  if (loading) {
+    return <div className="container-fluid px-4 py-4">Loading item...</div>;
+  }
   if (!item) return null;
 
   return (
     <div className="container-fluid px-4 py-4">
       <h2 className="fw-bold mb-3">Request to Borrow</h2>
 
-      <div className="card p-3 mb-4">
-        {item.image_url && (
-          <img
-            src={`http://localhost:3000${item.image_url}`}
-            alt={item.name}
-            className="item-details-image"
-            onError={(e) => {
-              e.currentTarget.src = "https://via.placeholder.com/400x250?text=Image+Not+Found";
-            }}
-          />
-        )}
+      {/* Two-column layout: Image/details LEFT, Form/Preview RIGHT */}
+      <div className="row g-4 align-items-start">
+        {/* LEFT */}
+        <div className="col-lg-6">
+          <div className="card p-3">
+            <div className="bookitem-img">
+              <img
+                src={getImageUrl(item.image_url)}
+                alt={item.name || "Item image"}
+                onError={(e) => {
+                  e.currentTarget.src =
+                    "https://via.placeholder.com/400x250?text=Image+Not+Found";
+                }}
+              />
+            </div>
 
-        <h4 className="fw-bold">{item.name}</h4>
-        <p className="text-muted">{item.description || "No description"}</p>
-        <p className="text-muted">Owner: {item.owner_name || "Unknown"}</p>
+            <h4 className="fw-bold mt-3 mb-1">{item.name}</h4>
+            <p className="text-muted mb-2">
+              {item.description || "No description"}
+            </p>
+            <p className="text-muted mb-0">
+              Owner: {item.owner_name || "Unknown"}
+            </p>
+          </div>
+        </div>
+
+        {/* RIGHT */}
+        <div className="col-lg-6">
+          <div className="card p-3">
+            <h5 className="fw-bold mb-3">Booking Details</h5>
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="request-form">
+              <label>
+                Requested Start:
+                <input
+                  type="datetime-local"
+                  name="requested_start"
+                  value={formData.requested_start}
+                  min={nowLocal}
+                  onChange={handleChange}
+                  required
+                />
+              </label>
+
+              <label>
+                Requested End:
+                <input
+                  type="datetime-local"
+                  name="requested_end"
+                  value={formData.requested_end}
+                  min={formData.requested_start || nowLocal}
+                  onChange={handleChange}
+                  required
+                />
+              </label>
+
+              <label>
+                Reason:
+                <textarea
+                  name="reason"
+                  value={formData.reason}
+                  onChange={handleChange}
+                  required
+                />
+              </label>
+
+              <button type="submit" className="primary-button w-100">
+                Submit Request
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
-
-      <form onSubmit={handleSubmit} className="request-form">
-        <label>
-          Requested Start:
-          <input
-            type="datetime-local"
-            name="requested_start"
-            value={formData.requested_start}
-            min={nowLocal}
-            onChange={handleChange}
-            required
-          />
-        </label>
-
-        <label>
-          Requested End:
-          <input
-            type="datetime-local"
-            name="requested_end"
-            value={formData.requested_end}
-            min={formData.requested_start || nowLocal}
-            onChange={handleChange}
-            required
-          />
-        </label>
-
-        <label>
-          Reason:
-          <textarea name="reason" value={formData.reason} onChange={handleChange} required />
-        </label>
-
-        <button type="submit" className="primary-button">
-          Submit Request
-        </button>
-      </form>
     </div>
   );
 };

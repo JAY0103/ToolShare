@@ -168,15 +168,17 @@ const Items = ({ searchTerm = "" }) => {
         <div className="items-grid">
           {filteredItems.map((item) => (
             <div key={item.item_id} className="item-card shadow-sm">
+            <div className="img-frame">
               <img
                 src={getImageSrc(item.image_url)}
                 alt={item.name}
-                className="item-image"
                 onError={(e) => {
                   e.currentTarget.src =
                     "https://via.placeholder.com/400x250?text=Image+Not+Found";
                 }}
               />
+            </div>
+
 
               <h5 className="fw-bold mt-2 mb-1">{item.name}</h5>
               <p className="text-muted mb-2">

@@ -62,6 +62,25 @@ html, body {
   background: #f6f7f9;
 }
 
+.img-frame {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #f6f7f9;
+  border: 1px solid rgba(0,0,0,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.img-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; 
+}
+
+
 /* Tool name + text spacing */
 .item-card h5 {
   margin-top: 10px;
@@ -117,7 +136,7 @@ html, body {
   background: #f6f7f9;
 }
 
-/* Form polish (optional but nice) */
+/* Form polish */
 .request-form label {
   display: block;
   margin-bottom: 12px;
@@ -149,4 +168,22 @@ html, body {
   padding: 10px 14px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.bookitem-img {
+  width: 100%;
+  height: 320px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: #f6f7f9;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bookitem-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
