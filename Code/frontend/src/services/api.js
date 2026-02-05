@@ -73,7 +73,7 @@ export const itemsService = {
     return d.items || [];
   },
 
-  //add item
+  // add item
   addItem: (formData) =>
     apiRequest("/api/items", {
       method: "POST",
@@ -86,13 +86,12 @@ export const itemsService = {
       method: "PUT",
       body: JSON.stringify({ item_id, name, description }),
     }),
-  
+
   // delete item
   deleteItem: (id) =>
     apiRequest(`/api/items/${id}`, {
       method: "DELETE",
     }),
-
 };
 
 // BOOKINGS SERVICE
@@ -114,9 +113,24 @@ export const bookingsService = {
   },
 
   updateRequestStatus: (requestId, status, decision_note = "") =>
-  apiRequest("/api/request-status", {
-    method: "PUT",
-    body: JSON.stringify({ request_id: requestId, status, decision_note }),
-  }),
+    apiRequest("/api/request-status", {
+      method: "PUT",
+      body: JSON.stringify({ request_id: requestId, status, decision_note }),
+    }),
+};
 
+//  NOTIFICATIONS SERVICE 
+export const notificationsService = {
+  // returns: { notifications: [...], unreadCount: number }
+  getNotifications: () => apiRequest("/api/notifications"),
+
+  markRead: (notification_id) =>
+    apiRequest(`/api/notifications/${notification_id}/read`, {
+      method: "PUT",
+    }),
+
+  markAllRead: () =>
+    apiRequest("/api/notifications/read-all", {
+      method: "PUT",
+    }),
 };

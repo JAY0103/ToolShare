@@ -143,6 +143,25 @@ const setupDatabase = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    //  Notifications
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        notification_id INT NOT NULL AUTO_INCREMENT,
+        user_id INT NOT NULL,
+        title VARCHAR(120) NOT NULL,
+        message TEXT NOT NULL,
+        type ENUM('info','success','warning','danger') DEFAULT 'info',
+        is_read TINYINT(1) DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (notification_id),
+        KEY user_id (user_id),
+        KEY is_read (is_read),
+        KEY created_at (created_at),
+        CONSTRAINT notifications_ibfk_1 FOREIGN KEY (user_id) REFERENCES users(user_id)
+          ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
     console.log('All tables created successfully!');
   } catch (err) {
     console.error('Database setup failed:', err.message);

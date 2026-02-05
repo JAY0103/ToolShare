@@ -72,7 +72,91 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Routes
+// NOTIFICATIONS HELPERS 
+// Create notification helper
+const createNotification = async (user_id, title, message, type = "info") => {
+  // type should be: info | success | warning | danger
+  await query(
+    `INSERT INTO notifications (user_id, title, message, type)
+     VALUES (?, ?, ?, ?)`,
+    [user_id, title, message, type]
+  );
+};
+
+// GET notifications for current logged-in user
+app.get("/api/notifications", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const notifications = await query(
+      `
+      SELECT notification_id, title, message, type, is_read, created_at
+      FROM notifications
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT 20
+      `,
+      [userId]
+    );
+
+    const unreadRows = await query(
+      `SELECT COUNT(*) AS unreadCount
+       FROM notifications
+       WHERE user_id = ? AND is_read = 0`,
+      [userId]
+    );
+
+    res.json({
+      notifications,
+      unreadCount: unreadRows?.[0]?.unreadCount || 0,
+    });
+  } catch (err) {
+    console.error("notifications get error:", err);
+    res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+});
+
+// Mark a single notification as read (must belong to user)
+app.put("/api/notifications/:id/read", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: "Invalid notification id" });
+
+    await query(
+      `UPDATE notifications
+       SET is_read = 1
+       WHERE notification_id = ? AND user_id = ?`,
+      [id, userId]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("notifications read error:", err);
+    res.status(500).json({ error: "Failed to mark notification as read" });
+  }
+});
+
+// Mark all notifications as read
+app.put("/api/notifications/read-all", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    await query(
+      `UPDATE notifications
+       SET is_read = 1
+       WHERE user_id = ?`,
+      [userId]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("notifications read-all error:", err);
+    res.status(500).json({ error: "Failed to mark all as read" });
+  }
+});
+
+//  ROUTES
 app.get("/", (req, res) => res.json({ message: "ToolShare Backend Running!" }));
 
 // REGISTER
@@ -181,7 +265,7 @@ app.post("/api/items", authenticateToken, upload.single("image"), async (req, re
 
     await query(
       `INSERT INTO items (name, description, image_url, faculty_id, owner_id, serial_number)
-       VALUES (?, ?, ?, 1, ?, ?)`,
+       VALUES (?, ?, ?, 1, ?, ?)` ,
       [name, description, image_url, owner_id, serial_number || null]
     );
 
@@ -282,11 +366,41 @@ app.post("/api/book-item", authenticateToken, async (req, res) => {
       return res.status(409).json({ error: "This item is already booked for the selected time range." });
     }
 
+    // Insert request
     const result = await query(
       `INSERT INTO borrowrequests (borrower_id, item_id, requested_start, requested_end, reason, status)
        VALUES (?, ?, ?, ?, ?, 'Pending')`,
       [borrower_id, item_id, requested_start, requested_end, reason]
     );
+
+    // Notification to item owner (faculty)
+    // get item name + owner_id + borrower name
+    const metaRows = await query(
+      `
+      SELECT i.owner_id, i.name AS item_name,
+             u.first_name, u.last_name, u.username
+      FROM items i
+      JOIN users u ON u.user_id = ?
+      WHERE i.item_id = ?
+      LIMIT 1
+      `,
+      [borrower_id, item_id]
+    );
+
+    if (metaRows.length > 0) {
+      const m = metaRows[0];
+      const borrowerName =
+        `${m.first_name || ""} ${m.last_name || ""}`.trim() ||
+        m.username ||
+        "A student";
+
+      await createNotification(
+        m.owner_id,
+        "New borrow request",
+        `${borrowerName} requested "${m.item_name}".`,
+        "warning"
+      );
+    }
 
     res.json({ message: "Borrow request submitted successfully", request_id: result.insertId });
   } catch (err) {
@@ -295,7 +409,7 @@ app.post("/api/book-item", authenticateToken, async (req, res) => {
   }
 });
 
-// BORROW: MY REQUESTS (student) + decision_note
+// BORROW: MY REQUESTS (student)
 app.get("/api/my-requests", authenticateToken, async (req, res) => {
   try {
     const borrowRequests = await query(
@@ -319,7 +433,7 @@ app.get("/api/my-requests", authenticateToken, async (req, res) => {
   }
 });
 
-// BORROW: INCOMING REQUESTS (faculty) + decision_note
+// BORROW: INCOMING REQUESTS (faculty)
 app.get("/api/item-requests", authenticateToken, async (req, res) => {
   try {
     const borrowRequests = await query(
@@ -344,7 +458,7 @@ app.get("/api/item-requests", authenticateToken, async (req, res) => {
   }
 });
 
-// BORROW: UPDATE STATUS + decision_note (block overlaps on Approve)
+// BORROW: UPDATE STATUS (block overlaps on Approve)
 app.put("/api/request-status", authenticateToken, async (req, res) => {
   const { request_id, status, decision_note } = req.body;
 
@@ -357,10 +471,11 @@ app.put("/api/request-status", authenticateToken, async (req, res) => {
   }
 
   try {
-    // Ensure request belongs to an item owned by this faculty + get request details
+    // Ensure request belongs to an item owned by this faculty + get details needed for notifications
     const rows = await query(
       `
-      SELECT br.request_id, br.item_id, br.requested_start, br.requested_end
+      SELECT br.request_id, br.item_id, br.borrower_id, br.requested_start, br.requested_end,
+             i.name AS item_name
       FROM borrowrequests br
       JOIN items i ON br.item_id = i.item_id
       WHERE br.request_id = ? AND i.owner_id = ?
@@ -398,6 +513,24 @@ app.put("/api/request-status", authenticateToken, async (req, res) => {
       `UPDATE borrowrequests SET status = ?, rejectionReason = ? WHERE request_id = ?`,
       [status, decision_note || null, request_id]
     );
+
+    // 🔔 Notify student about decision
+    if (String(status).toLowerCase() === "approved") {
+      await createNotification(
+        reqRow.borrower_id,
+        "Request approved",
+        `Your request for "${reqRow.item_name}" was approved.`,
+        "success"
+      );
+    } else if (String(status).toLowerCase() === "rejected") {
+      const notePart = decision_note ? ` Note: ${decision_note}` : "";
+      await createNotification(
+        reqRow.borrower_id,
+        "Request rejected",
+        `Your request for "${reqRow.item_name}" was rejected.${notePart}`,
+        "danger"
+      );
+    }
 
     res.json({ message: "Request status updated successfully." });
   } catch (err) {
