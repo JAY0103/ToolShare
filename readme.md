@@ -88,6 +88,8 @@ Development progress and design decisions are documented through project vlogs:
 
 - 🎥 [Vlog 1 – Project Introduction & Vision](https://youtu.be/zJ_2l1cMGKU)
 - 🎥 [Vlog 2 – Design & Early Implementation](https://youtu.be/WH_ojDBN3hM)
+- 🎥 [Vlog 3 – Development Progress & Contributions](https://youtu.be/Ynov3RDmeoY)
+
 
 ---
 
