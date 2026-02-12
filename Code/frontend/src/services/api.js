@@ -96,10 +96,18 @@ export const itemsService = {
 
 // BOOKINGS SERVICE
 export const bookingsService = {
+  // single item request (existing)
   bookItem: (data) =>
     apiRequest("/api/book-item", {
       method: "POST",
       body: JSON.stringify(data),
+    }),
+
+  // CART submit (multiple items in one request)
+  requestGroup: (payload) =>
+    apiRequest("/api/request-group", {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
 
   getMyBookings: async () => {
@@ -117,9 +125,29 @@ export const bookingsService = {
       method: "PUT",
       body: JSON.stringify({ request_id: requestId, status, decision_note }),
     }),
+
+  // CHECKOUT (Approved -> CheckedOut)
+  checkoutRequest: (requestId) =>
+    apiRequest("/api/request-checkout", {
+      method: "PUT",
+      body: JSON.stringify({ request_id: requestId }),
+    }),
+
+  // RETURN (CheckedOut/Overdue -> Returned)
+  returnRequest: (requestId) =>
+    apiRequest("/api/request-return", {
+      method: "PUT",
+      body: JSON.stringify({ request_id: requestId }),
+    }),
+
+  // (Optional) faculty overdue list
+  getOverdueBookings: async () => {
+    const d = await apiRequest("/api/overdue-requests");
+    return d.requests || [];
+  },
 };
 
-//  NOTIFICATIONS SERVICE 
+// NOTIFICATIONS SERVICE
 export const notificationsService = {
   // returns: { notifications: [...], unreadCount: number }
   getNotifications: () => apiRequest("/api/notifications"),

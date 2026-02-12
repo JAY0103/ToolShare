@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { notificationsService } from "../services/api";
 
+const CART_KEY = "cart";
+
 const Navbar = ({ onSearch }) => {
   const navigate = useNavigate();
 
@@ -12,6 +14,20 @@ const Navbar = ({ onSearch }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
+
+  // Cart badge count (student-only)
+  const [cartCount, setCartCount] = useState(0);
+
+  const readCartCount = () => {
+    try {
+      const raw = localStorage.getItem(CART_KEY);
+      const arr = JSON.parse(raw || "[]");
+      const count = Array.isArray(arr) ? arr.length : 0;
+      setCartCount(count);
+    } catch {
+      setCartCount(0);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -26,16 +42,28 @@ const Navbar = ({ onSearch }) => {
       setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
       setUnreadCount(Number(data.unreadCount || 0));
     } catch (e) {
-      // ignore (keeps navbar stable)
+      // ignore
     }
   };
 
   useEffect(() => {
     loadNotifications();
-    const id = setInterval(loadNotifications, 20000); // every 20 sec
+    const id = setInterval(loadNotifications, 20000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.user_id]);
+
+  // cart badge updates
+  useEffect(() => {
+    readCartCount();
+    const onUpdate = () => readCartCount();
+    window.addEventListener("cartUpdated", onUpdate);
+    window.addEventListener("storage", onUpdate);
+    return () => {
+      window.removeEventListener("cartUpdated", onUpdate);
+      window.removeEventListener("storage", onUpdate);
+    };
+  }, []);
 
   const markRead = async (n) => {
     if (!n || n.is_read) return;
@@ -88,7 +116,7 @@ const Navbar = ({ onSearch }) => {
           <input
             type="text"
             className="form-control"
-            placeholder={isFaculty ? "🔍 Search items..." : "🔍 Search recommended items..."}
+            placeholder={isFaculty ? "🔍 Search items..." : "🔍 Search items..."}
             style={{
               maxWidth: "520px",
               borderRadius: "30px",
@@ -99,6 +127,22 @@ const Navbar = ({ onSearch }) => {
 
           {/* Buttons */}
           <div className="ms-auto d-flex gap-3 flex-wrap justify-content-end align-items-center">
+            {/* 🛒 Cart (student-only) */}
+            {!isFaculty && user && (
+              <button
+                onClick={() => navigate("/cart")}
+                className="btn btn-outline-success fw-bold px-3 position-relative"
+                style={{ borderRadius: "12px" }}
+              >
+                🛒 Cart
+                {cartCount > 0 && (
+                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* 🔔 Notifications Bell */}
             {user && (
               <div className="position-relative">
@@ -190,7 +234,6 @@ const Navbar = ({ onSearch }) => {
               Home
             </button>
 
-            {/* Browse Items */}
             <button
               onClick={() => navigate("/items")}
               className="btn btn-outline-success fw-bold px-4"
@@ -199,7 +242,6 @@ const Navbar = ({ onSearch }) => {
               Browse Items
             </button>
 
-            {/* Student-only */}
             {!isFaculty && (
               <button
                 onClick={() => navigate("/my-bookings")}
@@ -210,7 +252,6 @@ const Navbar = ({ onSearch }) => {
               </button>
             )}
 
-            {/* Faculty-only */}
             {isFaculty && (
               <>
                 <button

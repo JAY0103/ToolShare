@@ -12,6 +12,8 @@ import MyBookings from "./pages/MyBookings";
 import RequestedBookings from "./pages/RequestedBookings";
 import EditItem from "./pages/EditItem";
 import Items from "./pages/Items";
+import Cart from "./pages/Cart";
+
 
 
 function App() {
@@ -52,6 +54,7 @@ function App() {
           />
           <Route path="/edit-item" element={user?.user_type === "Faculty" ? <EditItem /> : <Navigate to="/home" />} />
           <Route path="/items" element={user ? <Items searchTerm={searchTerm} /> : <Navigate to="/login" />} />
+          <Route path="/cart" element={user ? <Cart /> : <Navigate to="/login" />} />
 
         </Routes>
       </div>

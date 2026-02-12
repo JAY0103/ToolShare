@@ -3,8 +3,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { itemsService } from "../services/api";
 
+const CART_KEY = "cart";
+
 const Items = ({ searchTerm = "" }) => {
   const navigate = useNavigate();
+
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const isFaculty = user?.user_type?.toLowerCase() === "faculty";
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +83,10 @@ const Items = ({ searchTerm = "" }) => {
 
     try {
       setLoading(true);
-      const list = await itemsService.getAvailableItems(availabilityStart, availabilityEnd);
+      const list = await itemsService.getAvailableItems(
+        availabilityStart,
+        availabilityEnd
+      );
       setItems(Array.isArray(list) ? list : []);
       setSelectedCategory("All Tools");
       setAvailabilityMode(true);
@@ -97,10 +105,58 @@ const Items = ({ searchTerm = "" }) => {
     await loadAllItems();
   };
 
+  // ---------------- CART HELPERS ----------------
+  const getCart = () => {
+    try {
+      const raw = localStorage.getItem(CART_KEY);
+      const arr = JSON.parse(raw || "[]");
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const setCart = (cart) => {
+    localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    window.dispatchEvent(new Event("cartUpdated"));
+  };
+
+  const addToCart = (item) => {
+    const cart = getCart();
+    const exists = cart.some((c) => Number(c.item_id) === Number(item.item_id));
+    if (exists) {
+      alert("This item is already in your cart.");
+      return;
+    }
+
+    cart.push({
+      item_id: item.item_id,
+      name: item.name,
+      description: item.description,
+      image_url: item.image_url,
+      owner_name: item.owner_name,
+      // per-item dates will be set in Cart.jsx
+      requested_start: "",
+      requested_end: "",
+    });
+
+    setCart(cart);
+    alert("Added to cart ");
+  };
+
   return (
     <div className="container-fluid px-4 py-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="fw-bold mb-0">Browse Tools</h2>
+
+        {!isFaculty && (
+          <button
+            className="btn btn-outline-success fw-bold"
+            onClick={() => navigate("/cart")}
+          >
+            🛒 Go to Cart
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -134,16 +190,24 @@ const Items = ({ searchTerm = "" }) => {
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
               {categories.map((c) => (
-                <option key={c} value={c}>{c}</option>
+                <option key={c} value={c}>
+                  {c}
+                </option>
               ))}
             </select>
           </div>
 
           <div className="col-md-3 d-flex gap-2">
-            <button className="btn btn-success flex-fill fw-bold" onClick={checkAvailability}>
+            <button
+              className="btn btn-success flex-fill fw-bold"
+              onClick={checkAvailability}
+            >
               Check Availability
             </button>
-            <button className="btn btn-outline-secondary flex-fill fw-bold" onClick={clearAvailability}>
+            <button
+              className="btn btn-outline-secondary flex-fill fw-bold"
+              onClick={clearAvailability}
+            >
               Clear
             </button>
           </div>
@@ -151,7 +215,8 @@ const Items = ({ searchTerm = "" }) => {
           {availabilityMode && (
             <div className="col-12">
               <div className="alert alert-success py-2 mb-0">
-                Showing tools available between <strong>{availabilityStart}</strong> and{" "}
+                Showing tools available between{" "}
+                <strong>{availabilityStart}</strong> and{" "}
                 <strong>{availabilityEnd}</strong>
               </div>
             </div>
@@ -168,17 +233,16 @@ const Items = ({ searchTerm = "" }) => {
         <div className="items-grid">
           {filteredItems.map((item) => (
             <div key={item.item_id} className="item-card shadow-sm">
-            <div className="img-frame">
-              <img
-                src={getImageSrc(item.image_url)}
-                alt={item.name}
-                onError={(e) => {
-                  e.currentTarget.src =
-                    "https://via.placeholder.com/400x250?text=Image+Not+Found";
-                }}
-              />
-            </div>
-
+              <div className="img-frame">
+                <img
+                  src={getImageSrc(item.image_url)}
+                  alt={item.name}
+                  onError={(e) => {
+                    e.currentTarget.src =
+                      "https://via.placeholder.com/400x250?text=Image+Not+Found";
+                  }}
+                />
+              </div>
 
               <h5 className="fw-bold mt-2 mb-1">{item.name}</h5>
               <p className="text-muted mb-2">
@@ -188,12 +252,28 @@ const Items = ({ searchTerm = "" }) => {
                 Owner: {item.owner_name || "Unknown"}
               </div>
 
-              <button
-                className="btn btn-success fw-bold"
-                onClick={() => navigate(`/book-item?item_id=${item.item_id}`)}
-              >
-                Request
-              </button>
+              {/* Student actions */}
+              {!isFaculty ? (
+                <div className="d-flex gap-2">
+                  <button
+                    className="btn btn-outline-success fw-bold flex-fill"
+                    onClick={() => addToCart(item)}
+                  >
+                    Add to Cart
+                  </button>
+
+                  <button
+                    className="btn btn-success fw-bold flex-fill"
+                    onClick={() => navigate(`/book-item?item_id=${item.item_id}`)}
+                  >
+                    Request
+                  </button>
+                </div>
+              ) : (
+                <div className="text-muted small">
+                  Faculty view (requests come from students)
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -202,4 +282,4 @@ const Items = ({ searchTerm = "" }) => {
   );
 };
 
-export default Items
+export default Items;
