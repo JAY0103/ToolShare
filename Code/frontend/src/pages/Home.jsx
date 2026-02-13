@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { itemsService, bookingsService } from "../services/api";
 
+const CART_KEY = "cart";
+
 const Home = ({ searchTerm = "" }) => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "null");
@@ -49,6 +51,44 @@ const Home = ({ searchTerm = "" }) => {
     if (!image_url) return "https://via.placeholder.com/400x250?text=ToolShare";
     if (image_url.startsWith("http")) return image_url;
     return `http://localhost:3000${image_url}`;
+  };
+
+  // ---------------- CART HELPERS  ----------------
+  const getCart = () => {
+    try {
+      const raw = localStorage.getItem(CART_KEY);
+      const arr = JSON.parse(raw || "[]");
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const setCart = (cart) => {
+    localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    window.dispatchEvent(new Event("cartUpdated"));
+  };
+
+  const addToCart = (item) => {
+    const cart = getCart();
+    const exists = cart.some((c) => Number(c.item_id) === Number(item.item_id));
+    if (exists) {
+      alert("This item is already in your cart.");
+      return;
+    }
+
+    cart.push({
+      item_id: item.item_id,
+      name: item.name,
+      description: item.description,
+      image_url: item.image_url,
+      owner_name: item.owner_name,
+      requested_start: "",
+      requested_end: "",
+    });
+
+    setCart(cart);
+    alert("Added to cart");
   };
 
   // ---- Recommendation logic (student only)
@@ -98,19 +138,15 @@ const Home = ({ searchTerm = "" }) => {
 
   // faculty dashboard cards
   const pendingIncoming = useMemo(() => {
-    return incomingRequests.filter(
-      (r) => (r.status || "").toLowerCase() === "pending"
-    ).length;
+    return incomingRequests.filter((r) => (r.status || "").toLowerCase() === "pending").length;
   }, [incomingRequests]);
 
   // student dashboard cards
   const pendingMine = useMemo(() => {
-    return myRequests.filter((r) => (r.status || "").toLowerCase() === "pending")
-      .length;
+    return myRequests.filter((r) => (r.status || "").toLowerCase() === "pending").length;
   }, [myRequests]);
 
-  // For student: only THEIR bookings due today
-  // For faculty: ALL incoming bookings due today
+  // due today
   const dueTodayCount = useMemo(() => {
     const list = isFaculty ? incomingRequests : myRequests;
 
@@ -119,12 +155,9 @@ const Home = ({ searchTerm = "" }) => {
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
     return list.filter((r) => {
-      // Only count approved bookings as "due"
       const status = (r.status || "").toLowerCase();
       if (status !== "approved") return false;
-
       const end = new Date(r.requested_end);
-
       return end >= startOfDay && end < endOfDay;
     }).length;
   }, [isFaculty, incomingRequests, myRequests]);
@@ -134,9 +167,7 @@ const Home = ({ searchTerm = "" }) => {
     if (!searchTerm) return recommendedItems;
     const term = searchTerm.toLowerCase();
     return recommendedItems.filter(
-      (i) =>
-        i.name?.toLowerCase().includes(term) ||
-        i.description?.toLowerCase().includes(term)
+      (i) => i.name?.toLowerCase().includes(term) || i.description?.toLowerCase().includes(term)
     );
   }, [recommendedItems, searchTerm]);
 
@@ -147,12 +178,16 @@ const Home = ({ searchTerm = "" }) => {
           <h2 className="fw-bold mb-1">
             Welcome{user?.first_name ? `, ${user.first_name}` : ""} 👋
           </h2>
-          <span
-            className={`badge ${isFaculty ? "bg-warning text-dark" : "bg-success"}`}
-          >
+          <span className={`badge ${isFaculty ? "bg-warning text-dark" : "bg-success"}`}>
             {isFaculty ? "Faculty Dashboard" : "Student Dashboard"}
           </span>
         </div>
+
+        {!isFaculty && (
+          <button className="btn btn-outline-success fw-bold" onClick={() => navigate("/cart")}>
+            🛒 Go to Cart
+          </button>
+        )}
       </div>
 
       {/* Stats row */}
@@ -198,14 +233,12 @@ const Home = ({ searchTerm = "" }) => {
         </div>
       )}
 
-      {/* Faculty info */}
-
       {loading ? (
         <div className="text-center py-5">Loading dashboard...</div>
       ) : !isFaculty ? (
         displayedRecommended.length === 0 ? (
           <div className="alert alert-info">
-            No recommendations found yet. Try booking an item from <b>Browse Items</b>.
+            No recommendations found yet. Try adding tools from <b>Browse Items</b>.
           </div>
         ) : (
           <div className="items-grid">
@@ -226,12 +259,15 @@ const Home = ({ searchTerm = "" }) => {
                 <p className="text-muted mb-2">
                   {item.description?.substring(0, 90) || "No description"}
                 </p>
-                <button
-                  className="btn btn-success fw-bold"
-                  onClick={() => navigate(`/book-item?item_id=${item.item_id}`)}
-                >
-                  Request
-                </button>
+
+                <div className="d-flex gap-2">
+                  <button
+                    className="btn btn-outline-success fw-bold flex-fill"
+                    onClick={() => addToCart(item)}
+                  >
+                    Add to Cart
+                  </button>
+                </div>
               </div>
             ))}
           </div>

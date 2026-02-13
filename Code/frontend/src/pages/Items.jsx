@@ -10,6 +10,7 @@ const Items = ({ searchTerm = "" }) => {
 
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const isFaculty = user?.user_type?.toLowerCase() === "faculty";
+  const userId = user?.user_id;
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +51,9 @@ const Items = ({ searchTerm = "" }) => {
 
     // match Uncategorized too
     if (selectedCategory !== "All Tools") {
-      result = result.filter((i) => (i.category_name || "Uncategorized") === selectedCategory);
+      result = result.filter(
+        (i) => (i.category_name || "Uncategorized") === selectedCategory
+      );
     }
 
     if (searchTerm) {
@@ -93,7 +96,7 @@ const Items = ({ searchTerm = "" }) => {
       setSelectedCategory("All Tools");
       setAvailabilityMode(true);
     } catch (e) {
-      alert("Availability filter failed (backend endpoint required).");
+      alert("Availability filter failed.");
     } finally {
       setLoading(false);
     }
@@ -144,6 +147,17 @@ const Items = ({ searchTerm = "" }) => {
 
     setCart(cart);
     alert("Added to cart ");
+  };
+
+  const handleDelete = async (itemId) => {
+    if (!window.confirm("Delete this item?")) return;
+    try {
+      await itemsService.deleteItem(itemId);
+      alert("Item deleted.");
+      await loadAllItems();
+    } catch (err) {
+      alert(err.message || "Failed to delete item");
+    }
   };
 
   return (
@@ -233,44 +247,69 @@ const Items = ({ searchTerm = "" }) => {
         <div className="alert alert-info text-center">No tools found.</div>
       ) : (
         <div className="items-grid">
-          {filteredItems.map((item) => (
-            <div key={item.item_id} className="item-card shadow-sm">
-              <div className="img-frame">
-                <img
-                  src={getImageSrc(item.image_url)}
-                  alt={item.name}
-                  onError={(e) => {
-                    e.currentTarget.src =
-                      "https://via.placeholder.com/400x250?text=Image+Not+Found";
-                  }}
-                />
-              </div>
+          {filteredItems.map((item) => {
+            const isOwner = isFaculty && Number(item.owner_id) === Number(userId);
 
-              <h5 className="fw-bold mt-2 mb-1">{item.name}</h5>
-              <p className="text-muted mb-2">
-                {item.description?.substring(0, 90) || "No description"}
-              </p>
-              <div className="text-muted small mb-3">
-                Owner: {item.owner_name || "Unknown"}
-              </div>
+            return (
+              <div key={item.item_id} className="item-card shadow-sm">
+                <div className="img-frame">
+                  <img
+                    src={getImageSrc(item.image_url)}
+                    alt={item.name}
+                    onError={(e) => {
+                      e.currentTarget.src =
+                        "https://via.placeholder.com/400x250?text=Image+Not+Found";
+                    }}
+                  />
+                </div>
 
-              {/* Student actions */}
-              {!isFaculty ? (
-                <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-outline-success fw-bold flex-fill"
-                    onClick={() => addToCart(item)}
-                  >
-                    Add to Cart
-                  </button>
+                <h5 className="fw-bold mt-2 mb-1">{item.name}</h5>
+                <p className="text-muted mb-2">
+                  {item.description?.substring(0, 90) || "No description"}
+                </p>
+
+                <div className="text-muted small mb-2">
+                  Owner: {item.owner_name || "Unknown"}
                 </div>
-              ) : (
-                <div className="text-muted small">
-                  Faculty view (requests come from students)
+
+                <div className="text-muted small mb-3">
+                  Category: {item.category_name || "Uncategorized"}
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Student actions */}
+                {!isFaculty ? (
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-outline-success fw-bold flex-fill"
+                      onClick={() => addToCart(item)}
+                    >
+                      Add to Cart
+                    </button>
+                  </div>
+                ) : isOwner ? (
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-outline-primary fw-bold flex-fill"
+                      onClick={() => navigate(`/edit-item?item_id=${item.item_id}`)}
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      className="btn btn-outline-danger fw-bold flex-fill"
+                      onClick={() => handleDelete(item.item_id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-muted small">
+                    Faculty view (not your item)
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
 // src/pages/MyBookings.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { bookingsService, API_BASE } from "../services/api";
 
 const MyBookings = () => {
@@ -39,12 +39,33 @@ const MyBookings = () => {
     return "bg-dark";
   };
 
+  // GROUP: request_group_id (cart) OR request_id (single request)
+  const grouped = useMemo(() => {
+    const map = new Map();
+    for (const r of requests) {
+      const key = r.request_group_id ? `G-${r.request_group_id}` : `S-${r.request_id}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          request_group_id: r.request_group_id || null,
+          reason: r.reason || "",
+          items: [],
+        });
+      }
+      map.get(key).items.push(r);
+    }
+    // newest first: using max request_id inside group
+    const arr = Array.from(map.values());
+    arr.sort((a, b) => {
+      const aMax = Math.max(...a.items.map((x) => Number(x.request_id)));
+      const bMax = Math.max(...b.items.map((x) => Number(x.request_id)));
+      return bMax - aMax;
+    });
+    return arr;
+  }, [requests]);
+
   if (loading) {
-    return (
-      <div className="container-fluid px-4 py-4">
-        Loading bookings...
-      </div>
-    );
+    return <div className="container-fluid px-4 py-4">Loading bookings...</div>;
   }
 
   return (
@@ -57,88 +78,89 @@ const MyBookings = () => {
         </div>
       ) : (
         <div className="row g-4">
-          {requests.map((req) => {
-            const status = req.status || "Pending";
-            const rejectionNote =
-              req.rejectionReason || req.decision_note || "";
-
-            return (
-              <div key={req.request_id} className="col-md-6 col-lg-4">
-                <div className="item-card shadow-sm">
-                  <div className="img-frame">
-                    <img
-                      src={getImageUrl(req.image_url)}
-                      alt={req.item_name || "Item image"}
-                      onError={(e) => {
-                        e.currentTarget.src =
-                          "https://via.placeholder.com/400x250?text=Image+Not+Found";
-                      }}
-                    />
-                  </div>
-
-                  <div className="card-body d-flex flex-column">
-                    <h5 className="card-title">{req.item_name}</h5>
-
-                    {/* Cart group id */}
-                    {req.request_group_id ? (
-                      <div className="text-muted small mb-2">
-                        <strong>Cart Group:</strong> #{req.request_group_id}
-                      </div>
-                    ) : null}
-
-                    <p>
-                      <strong>From:</strong>{" "}
-                      {req.requested_start
-                        ? new Date(req.requested_start).toLocaleString()
-                        : "—"}
-                    </p>
-                    <p>
-                      <strong>To:</strong>{" "}
-                      {req.requested_end
-                        ? new Date(req.requested_end).toLocaleString()
-                        : "—"}
-                    </p>
-
-                    <p>
-                      <strong>Reason:</strong> {req.reason || "—"}
-                    </p>
-
-                    {/* Lifecycle timestamps */}
-                    {req.checked_out_at && (
-                      <p className="mb-1">
-                        <strong>Checked out:</strong>{" "}
-                        {new Date(req.checked_out_at).toLocaleString()}
-                      </p>
-                    )}
-
-                    {req.returned_at && (
-                      <p className="mb-1">
-                        <strong>Returned:</strong>{" "}
-                        {new Date(req.returned_at).toLocaleString()}
-                      </p>
-                    )}
-
-                    {/* Rejection message */}
-                    {status === "Rejected" && rejectionNote && (
-                      <div className="alert alert-info py-2 mt-2 mb-2">
-                        <strong>Faculty message:</strong> {rejectionNote}
-                      </div>
-                    )}
-
-                    <div className="mt-auto">
-                      <span
-                        className={`badge w-100 py-2 fs-6 ${badgeClassForStatus(
-                          status
-                        )}`}
-                      >
-                        {status}
-                      </span>
+          {grouped.map((group) => (
+            <div key={group.key} className="col-12">
+              <div className="card shadow-sm p-3">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <div>
+                    <h5 className="fw-bold mb-1">
+                      {group.request_group_id ? `Cart Request #${group.request_group_id}` : "Single Request"}
+                    </h5>
+                    <div className="text-muted small">
+                      <strong>Reason:</strong> {group.reason || "—"}
                     </div>
                   </div>
+
+                  <span className="badge bg-dark">
+                    {group.items.length} item(s)
+                  </span>
+                </div>
+
+                <div className="row g-3">
+                  {group.items.map((req) => {
+                    const status = req.status || "Pending";
+                    const rejectionNote = req.rejectionReason || req.decision_note || "";
+
+                    return (
+                      <div key={req.request_id} className="col-md-6 col-lg-4">
+                        <div className="item-card shadow-sm">
+                          <div className="img-frame">
+                            <img
+                              src={getImageUrl(req.image_url)}
+                              alt={req.item_name || "Item image"}
+                              onError={(e) => {
+                                e.currentTarget.src =
+                                  "https://via.placeholder.com/400x250?text=Image+Not+Found";
+                              }}
+                            />
+                          </div>
+
+                          <div className="card-body d-flex flex-column">
+                            <h5 className="card-title">{req.item_name}</h5>
+
+                            <p>
+                              <strong>From:</strong>{" "}
+                              {req.requested_start ? new Date(req.requested_start).toLocaleString() : "—"}
+                            </p>
+                            <p>
+                              <strong>To:</strong>{" "}
+                              {req.requested_end ? new Date(req.requested_end).toLocaleString() : "—"}
+                            </p>
+
+                            {req.checked_out_at && (
+                              <p className="mb-1">
+                                <strong>Checked out:</strong>{" "}
+                                {new Date(req.checked_out_at).toLocaleString()}
+                              </p>
+                            )}
+
+                            {req.returned_at && (
+                              <p className="mb-1">
+                                <strong>Returned:</strong>{" "}
+                                {new Date(req.returned_at).toLocaleString()}
+                              </p>
+                            )}
+
+                            {status === "Rejected" && rejectionNote && (
+                              <div className="alert alert-info py-2 mt-2 mb-2">
+                                <strong>Faculty message:</strong> {rejectionNote}
+                              </div>
+                            )}
+
+                            <div className="mt-auto">
+                              <span className={`badge w-100 py-2 fs-6 ${badgeClassForStatus(status)}`}>
+                                {status}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
     </div>

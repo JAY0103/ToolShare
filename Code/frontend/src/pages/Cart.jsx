@@ -141,9 +141,6 @@ const Cart = () => {
     <div className="container py-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="fw-bold mb-0">🛒 My Cart</h2>
-        <button className="btn btn-outline-success fw-bold" onClick={() => navigate("/items")}>
-          + Add More Items
-        </button>
       </div>
 
       {cartCount === 0 ? (

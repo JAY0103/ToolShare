@@ -82,7 +82,7 @@ const AddItem = () => {
 
           {/*  Category dropdown */}
           <div className="mb-3">
-            <label className="form-label">Category (Optional)</label>
+            <label className="form-label">Category *</label>
             <select
               name="category_id"
               className="form-select"
