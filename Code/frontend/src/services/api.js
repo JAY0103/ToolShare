@@ -60,6 +60,12 @@ export const authService = {
 
 // ITEMS SERVICE
 export const itemsService = {
+  // categories for dropdown/filter
+  getCategories: async () => {
+    const d = await apiRequest("/api/categories");
+    return d.categories || [];
+  },
+
   getItems: async () => {
     const d = await apiRequest("/api/items");
     return d.items || [];
@@ -80,11 +86,11 @@ export const itemsService = {
       body: formData,
     }),
 
-  // edit item
-  editItem: (item_id, { name, description }) =>
+  // edit item (supports category_id too)
+  editItem: (item_id, { name, description, category_id }) =>
     apiRequest("/api/edit-item", {
       method: "PUT",
-      body: JSON.stringify({ item_id, name, description }),
+      body: JSON.stringify({ item_id, name, description, category_id }),
     }),
 
   // delete item

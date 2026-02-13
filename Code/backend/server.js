@@ -102,7 +102,6 @@ const createNotification = async (user_id, title, message, type = "info") => {
 };
 
 // -------------------- Overdue Auto Mark --------------------
-// CheckedOut + past end date => Overdue
 const autoMarkOverdue = async () => {
   await query(`
     UPDATE borrowrequests
@@ -261,15 +260,62 @@ app.put("/api/notifications/read-all", authenticateToken, async (req, res) => {
   }
 });
 
+// -------------------- CATEGORIES --------------------
+
+// GET categories for dropdown
+app.get("/api/categories", authenticateToken, async (req, res) => {
+  try {
+    const categories = await query(
+      `SELECT category_id, name, description
+       FROM categories
+       ORDER BY name ASC`
+    );
+    res.json({ categories });
+  } catch (err) {
+    console.error("get categories error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Optional: faculty can create categories
+app.post("/api/categories", authenticateToken, async (req, res) => {
+  const { name, description } = req.body;
+  if (!name || !String(name).trim()) return res.status(400).json({ error: "Category name is required." });
+
+  try {
+    const u = await query(`SELECT user_type FROM users WHERE user_id = ? LIMIT 1`, [req.user.userId]);
+    if (!u[0] || String(u[0].user_type).toLowerCase() !== "faculty") {
+      return res.status(403).json({ error: "Only faculty can create categories." });
+    }
+
+    await query(
+      `INSERT INTO categories (name, description)
+       VALUES (?, ?)`,
+      [String(name).trim(), description || null]
+    );
+
+    res.json({ message: "Category created" });
+  } catch (err) {
+    if (err?.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ error: "Category already exists." });
+    }
+    console.error("create category error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // -------------------- ITEMS --------------------
 
-// ITEMS: GET ALL
+// ITEMS GET ALL includes category_name
 app.get("/api/items", authenticateToken, async (req, res) => {
   try {
     const items = await query(`
-      SELECT i.*, u.username AS owner_name
+      SELECT i.*,
+             u.username AS owner_name,
+             c.name AS category_name
       FROM items i
       JOIN users u ON i.owner_id = u.user_id
+      LEFT JOIN categories c ON i.category_id = c.category_id
       ORDER BY i.item_id DESC
     `);
 
@@ -280,9 +326,9 @@ app.get("/api/items", authenticateToken, async (req, res) => {
   }
 });
 
-// ITEMS: CREATE (image upload)
+// ITEMS CREATE accepts category_id
 app.post("/api/items", authenticateToken, upload.single("image"), async (req, res) => {
-  const { name, description, serial_number } = req.body;
+  const { name, description, serial_number, category_id } = req.body;
   const owner_id = req.user.userId;
 
   if (!name || !description) {
@@ -291,11 +337,12 @@ app.post("/api/items", authenticateToken, upload.single("image"), async (req, re
 
   try {
     const image_url = req.file ? `/uploads/${req.file.filename}` : null;
+    const catId = category_id ? Number(category_id) : null;
 
     await query(
-      `INSERT INTO items (name, description, image_url, faculty_id, owner_id, serial_number)
-       VALUES (?, ?, ?, 1, ?, ?)` ,
-      [name, description, image_url, owner_id, serial_number || null]
+      `INSERT INTO items (name, description, image_url, faculty_id, owner_id, serial_number, category_id)
+       VALUES (?, ?, ?, 1, ?, ?, ?)`,
+      [name, description, image_url, owner_id, serial_number || null, catId || null]
     );
 
     res.json({ message: "Item added successfully" });
@@ -327,8 +374,7 @@ app.delete("/api/items/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// ITEMS: AVAILABILITY FILTER
-// Block overlaps with Approved/CheckedOut/Overdue
+// AVAILABILITY includes category_name
 app.get("/api/items/availability", authenticateToken, async (req, res) => {
   const { start, end } = req.query;
   if (!start || !end) return res.status(400).json({ error: "start and end are required" });
@@ -343,9 +389,10 @@ app.get("/api/items/availability", authenticateToken, async (req, res) => {
 
     const items = await query(
       `
-      SELECT i.*, u.username AS owner_name
+      SELECT i.*, u.username AS owner_name, c.name AS category_name
       FROM items i
       JOIN users u ON i.owner_id = u.user_id
+      LEFT JOIN categories c ON i.category_id = c.category_id
       WHERE NOT EXISTS (
         SELECT 1
         FROM borrowrequests br
@@ -366,17 +413,21 @@ app.get("/api/items/availability", authenticateToken, async (req, res) => {
   }
 });
 
-// EDIT ITEM (owner only)
+// EDIT ITEM can update category_id too
 app.put("/api/edit-item", authenticateToken, async (req, res) => {
-  const { item_id, name, description } = req.body;
+  const { item_id, name, description, category_id } = req.body;
   const userId = req.user.userId;
 
   if (!item_id || !name) return res.status(400).json({ error: "Item ID and name are required." });
 
   try {
+    const catId = category_id ? Number(category_id) : null;
+
     await query(
-      `UPDATE items SET name = ?, description = ? WHERE item_id = ? AND owner_id = ?`,
-      [name, description || null, item_id, userId]
+      `UPDATE items
+       SET name = ?, description = ?, category_id = ?
+       WHERE item_id = ? AND owner_id = ?`,
+      [name, description || null, catId || null, item_id, userId]
     );
 
     res.json({ message: "Item updated successfully" });
@@ -387,9 +438,8 @@ app.put("/api/edit-item", authenticateToken, async (req, res) => {
 });
 
 // -------------------- BORROW / BOOKINGS --------------------
+// (Everything below is your existing lifecycle + cart logic)
 
-// BORROW: CREATE SINGLE REQUEST (still supported)
-// Block overlaps with Approved/CheckedOut/Overdue
 app.post("/api/book-item", authenticateToken, async (req, res) => {
   const { item_id, requested_start, requested_end, reason } = req.body;
   const borrower_id = req.user.userId;
@@ -464,7 +514,6 @@ app.post("/api/book-item", authenticateToken, async (req, res) => {
   }
 });
 
-// CART: CREATE GROUP REQUEST
 app.post("/api/request-group", authenticateToken, async (req, res) => {
   const borrower_id = req.user.userId;
   const { reason, items } = req.body;
@@ -476,7 +525,6 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
   try {
     await autoMarkOverdue();
 
-    // Borrower name (for notifications)
     const borrowerRows = await query(
       `SELECT first_name, last_name, username FROM users WHERE user_id = ? LIMIT 1`,
       [borrower_id]
@@ -488,7 +536,6 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
       "A student";
 
     const result = await withTransaction(async () => {
-      // Create group row (requested_start/end can stay NULL for per-item dates)
       const groupInsert = await query(
         `INSERT INTO request_groups (borrower_id, requested_start, requested_end, reason)
          VALUES (?, NULL, NULL, ?)`,
@@ -498,8 +545,6 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
 
       const created = [];
       const failed = [];
-
-      // owner aggregation: owner_id -> {count, itemNames[]}
       const ownerAgg = new Map();
 
       for (const it of items) {
@@ -519,7 +564,6 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
           continue;
         }
 
-        // Ensure item exists + get owner and name
         const itemRows = await query(
           `SELECT item_id, owner_id, name FROM items WHERE item_id = ? LIMIT 1`,
           [item_id]
@@ -531,13 +575,11 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
 
         const itemMeta = itemRows[0];
 
-        // Prevent user requesting their own item (optional safety)
         if (Number(itemMeta.owner_id) === Number(borrower_id)) {
           failed.push({ item_id, error: "You cannot request your own item" });
           continue;
         }
 
-        // Conflict check against Approved/CheckedOut/Overdue
         const conflicts = await query(
           `
           SELECT 1
@@ -556,7 +598,6 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
           continue;
         }
 
-        // Insert borrow request linked to group
         const ins = await query(
           `INSERT INTO borrowrequests
              (borrower_id, item_id, requested_start, requested_end, reason, status, request_group_id)
@@ -570,7 +611,6 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
           item_name: itemMeta.name,
         });
 
-        // Aggregate per owner
         const owner_id = itemMeta.owner_id;
         if (!ownerAgg.has(owner_id)) {
           ownerAgg.set(owner_id, { count: 0, itemNames: [] });
@@ -580,7 +620,6 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
         agg.itemNames.push(itemMeta.name);
       }
 
-      // If nothing created, rollback by throwing
       if (created.length === 0) {
         const err = new Error("No items could be requested (all failed).");
         err.code = "NO_CREATED";
@@ -588,7 +627,6 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
         throw err;
       }
 
-      // Notifications: one per owner
       for (const [owner_id, agg] of ownerAgg.entries()) {
         const sampleNames = agg.itemNames.slice(0, 3).join(", ");
         const more = agg.itemNames.length > 3 ? ` +${agg.itemNames.length - 3} more` : "";
@@ -610,7 +648,6 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
       failed_items: result.failed,
     });
   } catch (err) {
-    // If we threw NO_CREATED -> send failures back
     if (err?.code === "NO_CREATED") {
       return res.status(409).json({
         error: err.message,
@@ -623,7 +660,6 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
   }
 });
 
-// BORROW: MY REQUESTS (student)
 app.get("/api/my-requests", authenticateToken, async (req, res) => {
   try {
     await autoMarkOverdue();
@@ -650,7 +686,6 @@ app.get("/api/my-requests", authenticateToken, async (req, res) => {
   }
 });
 
-// BORROW: INCOMING REQUESTS (faculty)
 app.get("/api/item-requests", authenticateToken, async (req, res) => {
   try {
     await autoMarkOverdue();
@@ -679,8 +714,6 @@ app.get("/api/item-requests", authenticateToken, async (req, res) => {
   }
 });
 
-// BORROW: UPDATE STATUS (faculty approve/reject)
-// On approve, block overlaps with Approved/CheckedOut/Overdue
 app.put("/api/request-status", authenticateToken, async (req, res) => {
   const { request_id, status, decision_note } = req.body;
 
@@ -711,7 +744,6 @@ app.put("/api/request-status", authenticateToken, async (req, res) => {
 
     const reqRow = rows[0];
 
-    // Only allow Approve/Reject from Pending
     if (!["Pending", "Approved", "Rejected", "CheckedOut", "Returned", "Overdue"].includes(reqRow.current_status)) {
       return res.status(409).json({ error: "Invalid current request status" });
     }
@@ -738,7 +770,6 @@ app.put("/api/request-status", authenticateToken, async (req, res) => {
       }
     }
 
-    // Only allow status changes to Approved/Rejected in this endpoint
     if (!["Approved", "Rejected"].includes(status)) {
       return res.status(400).json({ error: "This endpoint supports only Approved or Rejected." });
     }
@@ -748,7 +779,6 @@ app.put("/api/request-status", authenticateToken, async (req, res) => {
       [status, decision_note || null, request_id]
     );
 
-    // Notify student
     if (String(status).toLowerCase() === "approved") {
       await createNotification(
         reqRow.borrower_id,
@@ -773,7 +803,6 @@ app.put("/api/request-status", authenticateToken, async (req, res) => {
   }
 });
 
-// FACULTY: CHECKOUT (Approved -> CheckedOut)
 app.put("/api/request-checkout", authenticateToken, async (req, res) => {
   const { request_id } = req.body;
   if (!request_id) return res.status(400).json({ error: "request_id is required" });
@@ -823,7 +852,6 @@ app.put("/api/request-checkout", authenticateToken, async (req, res) => {
   }
 });
 
-// FACULTY: RETURN (CheckedOut/Overdue -> Returned)
 app.put("/api/request-return", authenticateToken, async (req, res) => {
   const { request_id } = req.body;
   if (!request_id) return res.status(400).json({ error: "request_id is required" });
@@ -873,7 +901,6 @@ app.put("/api/request-return", authenticateToken, async (req, res) => {
   }
 });
 
-// FACULTY: OVERDUE LIST 
 app.get("/api/overdue-requests", authenticateToken, async (req, res) => {
   try {
     await autoMarkOverdue();

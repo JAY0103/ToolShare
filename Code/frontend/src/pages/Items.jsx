@@ -36,10 +36,11 @@ const Items = ({ searchTerm = "" }) => {
     loadAllItems();
   }, []);
 
+  // include Uncategorized
   const categories = useMemo(() => {
     const set = new Set();
     for (const item of items) {
-      if (item.category_name) set.add(item.category_name);
+      set.add(item.category_name || "Uncategorized");
     }
     return ["All Tools", ...Array.from(set)];
   }, [items]);
@@ -47,8 +48,9 @@ const Items = ({ searchTerm = "" }) => {
   const filteredItems = useMemo(() => {
     let result = [...items];
 
+    // match Uncategorized too
     if (selectedCategory !== "All Tools") {
-      result = result.filter((i) => i.category_name === selectedCategory);
+      result = result.filter((i) => (i.category_name || "Uncategorized") === selectedCategory);
     }
 
     if (searchTerm) {
@@ -260,13 +262,6 @@ const Items = ({ searchTerm = "" }) => {
                     onClick={() => addToCart(item)}
                   >
                     Add to Cart
-                  </button>
-
-                  <button
-                    className="btn btn-success fw-bold flex-fill"
-                    onClick={() => navigate(`/book-item?item_id=${item.item_id}`)}
-                  >
-                    Request
                   </button>
                 </div>
               ) : (

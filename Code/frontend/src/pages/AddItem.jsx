@@ -1,5 +1,5 @@
 // src/pages/AddItem.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { itemsService } from "../services/api";
 
@@ -8,10 +8,29 @@ const AddItem = () => {
     name: "",
     description: "",
     serial_number: "",
+    category_id: "",
     image: null,
   });
 
+  const [categories, setCategories] = useState([]);
+  const [loadingCats, setLoadingCats] = useState(true);
+
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setLoadingCats(true);
+        const cats = await itemsService.getCategories(); 
+        setCategories(Array.isArray(cats) ? cats : []);
+      } catch (e) {
+        setCategories([]);
+      } finally {
+        setLoadingCats(false);
+      }
+    };
+    loadCategories();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -25,7 +44,9 @@ const AddItem = () => {
     const data = new FormData();
     data.append("name", formData.name);
     data.append("description", formData.description);
+
     if (formData.serial_number) data.append("serial_number", formData.serial_number);
+    if (formData.category_id) data.append("category_id", formData.category_id); 
     if (formData.image) data.append("image", formData.image);
 
     try {
@@ -57,6 +78,25 @@ const AddItem = () => {
           <div className="mb-3">
             <label className="form-label">Serial Number (Optional)</label>
             <input type="text" name="serial_number" className="form-control" onChange={handleChange} />
+          </div>
+
+          {/*  Category dropdown */}
+          <div className="mb-3">
+            <label className="form-label">Category (Optional)</label>
+            <select
+              name="category_id"
+              className="form-select"
+              onChange={handleChange}
+              value={formData.category_id}
+              disabled={loadingCats}
+            >
+              <option value="">{loadingCats ? "Loading categories..." : "Select a category"}</option>
+              {categories.map((c) => (
+                <option key={c.category_id} value={c.category_id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="mb-3">
