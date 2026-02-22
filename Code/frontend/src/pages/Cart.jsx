@@ -9,7 +9,9 @@ const Cart = () => {
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem("user") || "null");
-  const isFaculty = user?.user_type?.toLowerCase() === "faculty";
+  const userType = String(user?.user_type || "").toLowerCase();
+  const isFaculty = userType === "faculty";
+  const isAdmin = userType === "admin";
 
   const [cart, setCart] = useState([]);
   const [reason, setReason] = useState("");
@@ -29,7 +31,7 @@ const Cart = () => {
   const saveCart = (next) => {
     setCart(next);
     localStorage.setItem(CART_KEY, JSON.stringify(next));
-    window.dispatchEvent(new Event("cartUpdated"));
+    window.dispatchEvent(new Event("cartUpdated")); // keep event name to avoid breaking Navbar
   };
 
   useEffect(() => {
@@ -37,15 +39,18 @@ const Cart = () => {
       navigate("/login");
       return;
     }
-    if (isFaculty) {
+
+    // Faculty/Admin shouldn’t use basket (they manage tools)
+    if (isFaculty || isAdmin) {
       navigate("/items");
       return;
     }
+
     loadCart();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const cartCount = cart.length;
+  const basketCount = cart.length;
 
   const getImageSrc = (image_url) => {
     if (!image_url) return "https://via.placeholder.com/400x250?text=ToolShare";
@@ -58,7 +63,7 @@ const Cart = () => {
     saveCart(next);
   };
 
-  const clearCart = () => {
+  const clearBasket = () => {
     saveCart([]);
     setReason("");
   };
@@ -71,12 +76,12 @@ const Cart = () => {
   };
 
   const validate = () => {
-    if (!reason.trim()) return "Please enter a reason.";
-    if (cart.length === 0) return "Cart is empty.";
+    if (!reason.trim()) return "Please enter a reason for your request.";
+    if (cart.length === 0) return "No items selected (your basket is empty).";
 
     for (const c of cart) {
       if (!c.requested_start || !c.requested_end) {
-        return `Please set start and end for "${c.name}".`;
+        return `Please set start and end date/time for "${c.name}".`;
       }
       const s = new Date(c.requested_start);
       const e = new Date(c.requested_end);
@@ -88,7 +93,7 @@ const Cart = () => {
     return null;
   };
 
-  const submitCart = async () => {
+  const submitBasket = async () => {
     const err = validate();
     if (err) {
       alert(err);
@@ -111,13 +116,13 @@ const Cart = () => {
       const created = res.created_requests || [];
       const failed = res.failed_items || [];
 
-      // Remove successfully created items from cart, keep failed items so user can adjust dates
+      // Remove successfully created items from basket, keep failed items so user can adjust
       const createdIds = new Set(created.map((x) => Number(x.item_id)));
       const remaining = cart.filter((c) => !createdIds.has(Number(c.item_id)));
       saveCart(remaining);
 
-      let msg = `✅ Cart submitted!\nCreated: ${created.length}`;
-      if (failed.length > 0) msg += `\nFailed: ${failed.length} (fix dates/availability and re-submit)`;
+      let msg = `✅ Request submitted!\nApproved for processing: ${created.length}`;
+      if (failed.length > 0) msg += `\nNot submitted: ${failed.length} (please adjust dates and try again)`;
       alert(msg);
 
       if (remaining.length === 0) {
@@ -125,7 +130,7 @@ const Cart = () => {
         navigate("/my-bookings");
       }
     } catch (e) {
-      alert(e.message || "Cart submit failed.");
+      alert(e.message || "Request submission failed.");
     } finally {
       setSubmitting(false);
     }
@@ -140,17 +145,20 @@ const Cart = () => {
   return (
     <div className="container py-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="fw-bold mb-0">🛒 My Cart</h2>
+        <h2 className="fw-bold mb-0">🧺 My Basket</h2>
       </div>
 
-      {cartCount === 0 ? (
+      {basketCount === 0 ? (
         <div className="alert alert-info">
-          Your cart is empty. Go to <strong>Browse Items</strong> and add tools.
+          <div className="fw-bold">No items selected.</div>
+          <div className="mt-1">
+            Go to <strong>Browse Tools</strong> and add items to your basket.
+          </div>
         </div>
       ) : (
         <>
           <div className="card p-3 shadow-sm mb-4">
-            <label className="form-label fw-bold">Reason for requesting these items</label>
+            <label className="form-label fw-bold">Reason for this request</label>
             <textarea
               className="form-control"
               rows={3}
@@ -166,11 +174,20 @@ const Cart = () => {
             )}
 
             <div className="d-flex gap-2 mt-3">
-              <button className="btn btn-outline-secondary fw-bold" onClick={clearCart} disabled={submitting}>
-                Clear Cart
+              <button
+                className="btn btn-outline-secondary fw-bold"
+                onClick={clearBasket}
+                disabled={submitting}
+              >
+                Clear Basket
               </button>
-              <button className="btn btn-success fw-bold ms-auto" onClick={submitCart} disabled={submitting}>
-                {submitting ? "Submitting..." : "Submit Request"}
+
+              <button
+                className="btn btn-success fw-bold ms-auto"
+                onClick={submitBasket}
+                disabled={submitting}
+              >
+                {submitting ? "Submitting..." : "Submit Borrow Request"}
               </button>
             </div>
           </div>
@@ -195,7 +212,7 @@ const Cart = () => {
                     <div className="col-md-4">
                       <h5 className="fw-bold mb-1">{c.name}</h5>
                       <div className="text-muted small mb-2">
-                        Owner: {c.owner_name || "Unknown"}
+                        Tool owner: {c.owner_name || "Unknown"}
                       </div>
                       <div className="text-muted small">
                         {c.description?.substring(0, 120) || ""}
@@ -205,7 +222,7 @@ const Cart = () => {
                     <div className="col-md-5">
                       <div className="row g-2">
                         <div className="col-md-6">
-                          <label className="form-label fw-bold">Start</label>
+                          <label className="form-label fw-bold">Start date/time</label>
                           <input
                             type="datetime-local"
                             className="form-control"
@@ -216,7 +233,7 @@ const Cart = () => {
                           />
                         </div>
                         <div className="col-md-6">
-                          <label className="form-label fw-bold">End</label>
+                          <label className="form-label fw-bold">End date/time</label>
                           <input
                             type="datetime-local"
                             className="form-control"

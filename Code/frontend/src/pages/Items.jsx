@@ -9,7 +9,12 @@ const Items = ({ searchTerm = "" }) => {
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem("user") || "null");
-  const isFaculty = user?.user_type?.toLowerCase() === "faculty";
+
+  const userType = String(user?.user_type || "").toLowerCase();
+  const isFaculty = userType === "faculty";
+  const isAdmin = userType === "admin";
+  const isStaff = isFaculty || isAdmin;
+
   const userId = user?.user_id;
 
   const [items, setItems] = useState([]);
@@ -51,17 +56,13 @@ const Items = ({ searchTerm = "" }) => {
 
     // match Uncategorized too
     if (selectedCategory !== "All Tools") {
-      result = result.filter(
-        (i) => (i.category_name || "Uncategorized") === selectedCategory
-      );
+      result = result.filter((i) => (i.category_name || "Uncategorized") === selectedCategory);
     }
 
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(
-        (i) =>
-          i.name?.toLowerCase().includes(term) ||
-          i.description?.toLowerCase().includes(term)
+        (i) => i.name?.toLowerCase().includes(term) || i.description?.toLowerCase().includes(term)
       );
     }
 
@@ -88,10 +89,7 @@ const Items = ({ searchTerm = "" }) => {
 
     try {
       setLoading(true);
-      const list = await itemsService.getAvailableItems(
-        availabilityStart,
-        availabilityEnd
-      );
+      const list = await itemsService.getAvailableItems(availabilityStart, availabilityEnd);
       setItems(Array.isArray(list) ? list : []);
       setSelectedCategory("All Tools");
       setAvailabilityMode(true);
@@ -110,7 +108,7 @@ const Items = ({ searchTerm = "" }) => {
     await loadAllItems();
   };
 
-  // ---------------- CART HELPERS ----------------
+  // ---------------- BASKET HELPERS (still stored in "cart") ----------------
   const getCart = () => {
     try {
       const raw = localStorage.getItem(CART_KEY);
@@ -130,7 +128,7 @@ const Items = ({ searchTerm = "" }) => {
     const cart = getCart();
     const exists = cart.some((c) => Number(c.item_id) === Number(item.item_id));
     if (exists) {
-      alert("This item is already in your cart.");
+      alert("This tool is already in your basket.");
       return;
     }
 
@@ -146,17 +144,17 @@ const Items = ({ searchTerm = "" }) => {
     });
 
     setCart(cart);
-    alert("Added to cart ");
+    alert("Added to basket.");
   };
 
   const handleDelete = async (itemId) => {
-    if (!window.confirm("Delete this item?")) return;
+    if (!window.confirm("Delete this tool?")) return;
     try {
       await itemsService.deleteItem(itemId);
-      alert("Item deleted.");
+      alert("Tool deleted.");
       await loadAllItems();
     } catch (err) {
-      alert(err.message || "Failed to delete item");
+      alert(err.message || "Failed to delete tool");
     }
   };
 
@@ -165,12 +163,10 @@ const Items = ({ searchTerm = "" }) => {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="fw-bold mb-0">Browse Tools</h2>
 
-        {!isFaculty && (
-          <button
-            className="btn btn-outline-success fw-bold"
-            onClick={() => navigate("/cart")}
-          >
-            🛒 Go to Cart
+        {/* Student-only Basket button */}
+        {!isStaff && (
+          <button className="btn btn-outline-success fw-bold" onClick={() => navigate("/cart")}>
+            🧺 Go to Basket
           </button>
         )}
       </div>
@@ -214,16 +210,10 @@ const Items = ({ searchTerm = "" }) => {
           </div>
 
           <div className="col-md-3 d-flex gap-2">
-            <button
-              className="btn btn-success flex-fill fw-bold"
-              onClick={checkAvailability}
-            >
+            <button className="btn btn-success flex-fill fw-bold" onClick={checkAvailability}>
               Check Availability
             </button>
-            <button
-              className="btn btn-outline-secondary flex-fill fw-bold"
-              onClick={clearAvailability}
-            >
+            <button className="btn btn-outline-secondary flex-fill fw-bold" onClick={clearAvailability}>
               Clear
             </button>
           </div>
@@ -231,8 +221,7 @@ const Items = ({ searchTerm = "" }) => {
           {availabilityMode && (
             <div className="col-12">
               <div className="alert alert-success py-2 mb-0">
-                Showing tools available between{" "}
-                <strong>{availabilityStart}</strong> and{" "}
+                Showing tools available between <strong>{availabilityStart}</strong> and{" "}
                 <strong>{availabilityEnd}</strong>
               </div>
             </div>
@@ -248,7 +237,8 @@ const Items = ({ searchTerm = "" }) => {
       ) : (
         <div className="items-grid">
           {filteredItems.map((item) => {
-            const isOwner = isFaculty && Number(item.owner_id) === Number(userId);
+            const isOwner =
+              (isFaculty || isAdmin) && Number(item.owner_id) === Number(userId);
 
             return (
               <div key={item.item_id} className="item-card shadow-sm">
@@ -257,8 +247,7 @@ const Items = ({ searchTerm = "" }) => {
                     src={getImageSrc(item.image_url)}
                     alt={item.name}
                     onError={(e) => {
-                      e.currentTarget.src =
-                        "https://via.placeholder.com/400x250?text=Image+Not+Found";
+                      e.currentTarget.src = "https://via.placeholder.com/400x250?text=Image+Not+Found";
                     }}
                   />
                 </div>
@@ -268,22 +257,20 @@ const Items = ({ searchTerm = "" }) => {
                   {item.description?.substring(0, 90) || "No description"}
                 </p>
 
-                <div className="text-muted small mb-2">
-                  Owner: {item.owner_name || "Unknown"}
-                </div>
+                <div className="text-muted small mb-2">Owner: {item.owner_name || "Unknown"}</div>
 
                 <div className="text-muted small mb-3">
                   Category: {item.category_name || "Uncategorized"}
                 </div>
 
                 {/* Student actions */}
-                {!isFaculty ? (
+                {!isStaff ? (
                   <div className="d-flex gap-2">
                     <button
                       className="btn btn-outline-success fw-bold flex-fill"
                       onClick={() => addToCart(item)}
                     >
-                      Add to Cart
+                      Add to Basket
                     </button>
                   </div>
                 ) : isOwner ? (
@@ -303,9 +290,7 @@ const Items = ({ searchTerm = "" }) => {
                     </button>
                   </div>
                 ) : (
-                  <div className="text-muted small">
-                    Faculty view (not your item)
-                  </div>
+                  <div className="text-muted small">Staff view (not your tool)</div>
                 )}
               </div>
             );

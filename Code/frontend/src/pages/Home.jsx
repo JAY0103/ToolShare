@@ -8,12 +8,16 @@ const CART_KEY = "cart";
 const Home = ({ searchTerm = "" }) => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "null");
-  const isFaculty = user?.user_type?.toLowerCase() === "faculty";
+
+  const userType = String(user?.user_type || "").toLowerCase();
+  const isFaculty = userType === "faculty";
+  const isAdmin = userType === "admin";
+  const isStaff = isFaculty || isAdmin;
 
   const [allItems, setAllItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // student bookings OR faculty incoming
+  // student bookings OR faculty/admin incoming
   const [myRequests, setMyRequests] = useState([]);
   const [incomingRequests, setIncomingRequests] = useState([]);
 
@@ -24,14 +28,14 @@ const Home = ({ searchTerm = "" }) => {
       const items = await itemsService.getItems();
       setAllItems(Array.isArray(items) ? items : []);
 
-      if (isFaculty) {
+      if (isStaff) {
         const reqs = await bookingsService.getRequestedBookings();
         setIncomingRequests(Array.isArray(reqs) ? reqs : []);
-        setMyRequests([]); // clear student list
+        setMyRequests([]);
       } else {
         const reqs = await bookingsService.getMyBookings();
         setMyRequests(Array.isArray(reqs) ? reqs : []);
-        setIncomingRequests([]); // clear faculty list
+        setIncomingRequests([]);
       }
     } catch (e) {
       setAllItems([]);
@@ -45,7 +49,7 @@ const Home = ({ searchTerm = "" }) => {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFaculty]);
+  }, [isFaculty, isAdmin]);
 
   const getImageSrc = (image_url) => {
     if (!image_url) return "https://via.placeholder.com/400x250?text=ToolShare";
@@ -53,7 +57,7 @@ const Home = ({ searchTerm = "" }) => {
     return `http://localhost:3000${image_url}`;
   };
 
-  // ---------------- CART HELPERS  ----------------
+  // ---------------- BASKET HELPERS (still stored in "cart") ----------------
   const getCart = () => {
     try {
       const raw = localStorage.getItem(CART_KEY);
@@ -73,7 +77,7 @@ const Home = ({ searchTerm = "" }) => {
     const cart = getCart();
     const exists = cart.some((c) => Number(c.item_id) === Number(item.item_id));
     if (exists) {
-      alert("This item is already in your cart.");
+      alert("This tool is already in your basket.");
       return;
     }
 
@@ -88,12 +92,12 @@ const Home = ({ searchTerm = "" }) => {
     });
 
     setCart(cart);
-    alert("Added to cart");
+    alert("Added to basket");
   };
 
   // ---- Recommendation logic (student only)
   const recommendedItems = useMemo(() => {
-    if (isFaculty) return [];
+    if (isStaff) return [];
 
     const bookedNames = myRequests
       .map((r) => (r.item_name || "").toLowerCase())
@@ -134,9 +138,9 @@ const Home = ({ searchTerm = "" }) => {
     if (top.length > 0) return top;
 
     return [...allItems].slice(0, 6);
-  }, [allItems, myRequests, isFaculty]);
+  }, [allItems, myRequests, isStaff]);
 
-  // faculty dashboard cards
+  // staff dashboard cards
   const pendingIncoming = useMemo(() => {
     return incomingRequests.filter((r) => (r.status || "").toLowerCase() === "pending").length;
   }, [incomingRequests]);
@@ -148,7 +152,7 @@ const Home = ({ searchTerm = "" }) => {
 
   // due today
   const dueTodayCount = useMemo(() => {
-    const list = isFaculty ? incomingRequests : myRequests;
+    const list = isStaff ? incomingRequests : myRequests;
 
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -160,7 +164,7 @@ const Home = ({ searchTerm = "" }) => {
       const end = new Date(r.requested_end);
       return end >= startOfDay && end < endOfDay;
     }).length;
-  }, [isFaculty, incomingRequests, myRequests]);
+  }, [isStaff, incomingRequests, myRequests]);
 
   // apply searchTerm ONLY to recommended list on Home
   const displayedRecommended = useMemo(() => {
@@ -178,14 +182,14 @@ const Home = ({ searchTerm = "" }) => {
           <h2 className="fw-bold mb-1">
             Welcome{user?.first_name ? `, ${user.first_name}` : ""} 👋
           </h2>
-          <span className={`badge ${isFaculty ? "bg-warning text-dark" : "bg-success"}`}>
-            {isFaculty ? "Faculty Dashboard" : "Student Dashboard"}
+          <span className={`badge ${isStaff ? "bg-warning text-dark" : "bg-success"}`}>
+            {isStaff ? "Faculty/Admin Dashboard" : "Student Dashboard"}
           </span>
         </div>
 
-        {!isFaculty && (
+        {!isStaff && (
           <button className="btn btn-outline-success fw-bold" onClick={() => navigate("/cart")}>
-            🛒 Go to Cart
+            🧺 Go to Basket
           </button>
         )}
       </div>
@@ -194,12 +198,12 @@ const Home = ({ searchTerm = "" }) => {
       <div className="row g-3 mb-4">
         <div className="col-md-4">
           <div className="card p-3 shadow-sm">
-            <div className="fw-bold text-muted">Total Items</div>
+            <div className="fw-bold text-muted">Total tools (all)</div>
             <div className="fs-3 fw-bold">{allItems.length}</div>
           </div>
         </div>
 
-        {!isFaculty ? (
+        {!isStaff ? (
           <div className="col-md-4">
             <div className="card p-3 shadow-sm">
               <div className="fw-bold text-muted">My Pending Requests</div>
@@ -218,7 +222,7 @@ const Home = ({ searchTerm = "" }) => {
         <div className="col-md-4">
           <div className="card p-3 shadow-sm">
             <div className="fw-bold text-muted">
-              {isFaculty ? "Bookings Due Today" : "My Bookings Due Today"}
+              {isStaff ? "Bookings Due Today" : "My Bookings Due Today"}
             </div>
             <div className="fs-3 fw-bold">{dueTodayCount}</div>
           </div>
@@ -226,7 +230,7 @@ const Home = ({ searchTerm = "" }) => {
       </div>
 
       {/* Recommended section (student only) */}
-      {!isFaculty && (
+      {!isStaff && (
         <div className="d-flex justify-content-between align-items-center mb-2">
           <h4 className="fw-bold mb-0">Recommended for you</h4>
           <span className="text-muted small">Based on your previous bookings</span>
@@ -235,10 +239,10 @@ const Home = ({ searchTerm = "" }) => {
 
       {loading ? (
         <div className="text-center py-5">Loading dashboard...</div>
-      ) : !isFaculty ? (
+      ) : !isStaff ? (
         displayedRecommended.length === 0 ? (
           <div className="alert alert-info">
-            No recommendations found yet. Try adding tools from <b>Browse Items</b>.
+            No recommendations found yet. Try adding tools from <b>Browse Tools</b>.
           </div>
         ) : (
           <div className="items-grid">
@@ -265,7 +269,7 @@ const Home = ({ searchTerm = "" }) => {
                     className="btn btn-outline-success fw-bold flex-fill"
                     onClick={() => addToCart(item)}
                   >
-                    Add to Cart
+                    Add to Basket
                   </button>
                 </div>
               </div>

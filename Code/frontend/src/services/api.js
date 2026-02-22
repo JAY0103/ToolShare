@@ -121,6 +121,7 @@ export const bookingsService = {
     return d.requests || [];
   },
 
+  // Existing: faculty/owner incoming requests list
   getRequestedBookings: async () => {
     const d = await apiRequest("/api/item-requests");
     return d.requests || [];
@@ -146,16 +147,39 @@ export const bookingsService = {
       body: JSON.stringify({ request_id: requestId }),
     }),
 
-  // (Optional) faculty overdue list
+  // faculty overdue list
   getOverdueBookings: async () => {
     const d = await apiRequest("/api/overdue-requests");
+    return d.requests || [];
+  },
+
+  /* ============================================================
+     OWNER BOOKING HISTORY (all statuses + search/filter)
+     and OWNER ITEMS (for dropdown filter)
+     ============================================================ */
+
+  // For dropdown filter: items that belong to logged-in owner
+  getOwnerItems: async () => {
+    const d = await apiRequest("/api/owner/items");
+    return d.items || [];
+  },
+  
+  getOwnerBookingHistory: async (filters = {}) => {
+    const qs = new URLSearchParams();
+
+    if (filters.search) qs.set("search", filters.search);
+    if (filters.status) qs.set("status", filters.status);
+    if (filters.from) qs.set("from", filters.from);
+    if (filters.to) qs.set("to", filters.to);
+    if (filters.item_id) qs.set("item_id", String(filters.item_id));
+
+    const d = await apiRequest(`/api/owner/booking-history?${qs.toString()}`);
     return d.requests || [];
   },
 };
 
 // NOTIFICATIONS SERVICE
 export const notificationsService = {
-  // returns: { notifications: [...], unreadCount: number }
   getNotifications: () => apiRequest("/api/notifications"),
 
   markRead: (notification_id) =>

@@ -25,7 +25,7 @@ const RequestedBookings = () => {
       });
       setNotes((prev) => ({ ...initialNotes, ...prev }));
     } catch (err) {
-      alert("Failed to load requests");
+      alert("Failed to load incoming requests");
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,7 @@ const RequestedBookings = () => {
       await bookingsService.updateRequestStatus(requestId, "Approved", "");
       await fetchRequests();
       setRejectingId(null);
-      alert("Request Approved!");
+      alert("Request approved!");
     } catch (err) {
       alert(err.message || "Failed to approve");
     }
@@ -56,7 +56,7 @@ const RequestedBookings = () => {
     const noteToSend = (notes[requestId] || "").trim();
 
     if (!noteToSend) {
-      alert("Please enter a rejection reason before rejecting.");
+      alert("Please enter a reason before rejecting.");
       return;
     }
 
@@ -64,20 +64,20 @@ const RequestedBookings = () => {
       await bookingsService.updateRequestStatus(requestId, "Rejected", noteToSend);
       await fetchRequests();
       setRejectingId(null);
-      alert("Request Rejected!");
+      alert("Request rejected!");
     } catch (err) {
       alert(err.message || "Failed to reject");
     }
   };
 
-  // Checkout / Return
+  // Check out / Return
   const handleCheckout = async (requestId) => {
     try {
       await bookingsService.checkoutRequest(requestId);
       await fetchRequests();
       alert("Checked out successfully!");
     } catch (err) {
-      alert(err.message || "Checkout failed");
+      alert(err.message || "Check out failed");
     }
   };
 
@@ -103,27 +103,23 @@ const RequestedBookings = () => {
   };
 
   if (loading) {
-    return (
-      <div className="container-fluid px-4 py-4">
-        Loading incoming requests...
-      </div>
-    );
+    return <div className="container-fluid px-4 py-4">Loading incoming requests...</div>;
   }
 
   return (
     <div className="container-fluid px-4 py-4">
-      <h2 className="fw-bold mb-4">Incoming Borrow Requests</h2>
+      <h2 className="fw-bold mb-4">Incoming Requests</h2>
 
       {requests.length === 0 ? (
-        <div className="alert alert-info text-center">No requests found.</div>
+        <div className="alert alert-info text-center">No incoming requests found.</div>
       ) : (
         <div className="row g-4">
           {requests.map((req) => {
             const status = req.status || "Pending";
-            const studentName =
+            const requesterName =
               req.borrower_name ||
               `${req.first_name || ""} ${req.last_name || ""}`.trim() ||
-              "Student";
+              "Requester";
 
             const noteFromServer = req.rejectionReason || req.decision_note || "";
 
@@ -133,7 +129,7 @@ const RequestedBookings = () => {
                   <div className="img-frame">
                     <img
                       src={getImageUrl(req.image_url)}
-                      alt={req.item_name || "Item image"}
+                      alt={req.item_name || "Tool image"}
                       onError={(e) => {
                         e.currentTarget.src =
                           "https://via.placeholder.com/400x250?text=Image+Not+Found";
@@ -142,42 +138,44 @@ const RequestedBookings = () => {
                   </div>
 
                   <div className="card-body d-flex flex-column">
-                    <h5 className="card-title">{req.item_name}</h5>
+                    <div className="d-flex justify-content-between align-items-start gap-2">
+                      <h5 className="card-title mb-2">{req.item_name}</h5>
+                      <span className={`badge ${badgeClassForStatus(status)}`}>{status}</span>
+                    </div>
 
-                    {/* Cart group id (if requested via cart) */}
+                    {/* Basket group id (if requested via basket) */}
                     {req.request_group_id ? (
                       <div className="text-muted small mb-2">
-                        <strong>Cart Group:</strong> #{req.request_group_id}
+                        <strong>Basket Group:</strong> #{req.request_group_id}
                       </div>
                     ) : null}
 
-                    <p>
-                      <strong>Student:</strong> {studentName}
+                    <p className="mb-1">
+                      <strong>Requester:</strong> {requesterName}
                     </p>
 
-                    <p>
+                    <p className="mb-1">
                       <strong>From:</strong>{" "}
                       {req.requested_start ? new Date(req.requested_start).toLocaleString() : "—"}
                     </p>
-                    <p>
+                    <p className="mb-1">
                       <strong>To:</strong>{" "}
                       {req.requested_end ? new Date(req.requested_end).toLocaleString() : "—"}
                     </p>
-                    <p>
+
+                    <p className="mb-2">
                       <strong>Reason:</strong> {req.reason || "—"}
                     </p>
 
                     {/* lifecycle timestamps (optional display) */}
                     {req.checked_out_at && (
                       <p className="mb-1">
-                        <strong>Checked out:</strong>{" "}
-                        {new Date(req.checked_out_at).toLocaleString()}
+                        <strong>Checked out:</strong> {new Date(req.checked_out_at).toLocaleString()}
                       </p>
                     )}
                     {req.returned_at && (
                       <p className="mb-1">
-                        <strong>Returned:</strong>{" "}
-                        {new Date(req.returned_at).toLocaleString()}
+                        <strong>Returned:</strong> {new Date(req.returned_at).toLocaleString()}
                       </p>
                     )}
 
@@ -187,10 +185,13 @@ const RequestedBookings = () => {
                         <label className="form-label mb-1">
                           Rejection reason <span className="text-danger">*</span>
                         </label>
+                        <div className="small text-muted mb-1">
+                          This message will be sent to the requester.
+                        </div>
                         <textarea
                           className="form-control"
                           rows={3}
-                          placeholder="Explain why you are rejecting..."
+                          placeholder="Example: Tool is needed for another lab session during this time…"
                           value={notes[req.request_id] || ""}
                           onChange={(e) =>
                             setNotes((prev) => ({
@@ -202,10 +203,10 @@ const RequestedBookings = () => {
                       </div>
                     )}
 
-                    {/* Show rejection note if rejected */}
+                    {/* Show note if not pending and note exists */}
                     {status !== "Pending" && noteFromServer && (
                       <div className="alert alert-info py-2 mt-2 mb-2">
-                        <strong>Message sent:</strong> {noteFromServer}
+                        <strong>Message to requester:</strong> {noteFromServer}
                       </div>
                     )}
 
@@ -248,7 +249,7 @@ const RequestedBookings = () => {
                           onClick={() => handleCheckout(req.request_id)}
                           className="btn btn-primary btn-sm flex-fill"
                         >
-                          Checkout
+                          Check Out
                         </button>
                       ) : status === "CheckedOut" || status === "Overdue" ? (
                         <button
@@ -260,18 +261,11 @@ const RequestedBookings = () => {
                           Return
                         </button>
                       ) : (
-                        <span
-                          className={`badge w-100 py-3 fs-6 ${badgeClassForStatus(
-                            status
-                          )}`}
-                        >
-                          {status}
-                        </span>
+                        <button className="btn btn-outline-secondary btn-sm flex-fill" disabled>
+                          No actions available
+                        </button>
                       )}
                     </div>
-
-                    {/* If not Pending and not Approved/CheckedOut/Overdue, show badge too */}
-                    {status !== "Pending" && !["Approved", "CheckedOut", "Overdue"].includes(status) ? null : null}
                   </div>
                 </div>
               </div>

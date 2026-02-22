@@ -12,7 +12,7 @@ const MyBookings = () => {
       const list = Array.isArray(data) ? data : [];
       setRequests(list);
     } catch (err) {
-      alert("Failed to load bookings");
+      alert("Failed to load requests");
     } finally {
       setLoading(false);
     }
@@ -39,7 +39,7 @@ const MyBookings = () => {
     return "bg-dark";
   };
 
-  // GROUP: request_group_id (cart) OR request_id (single request)
+  // GROUP: request_group_id (basket) OR request_id (single request)
   const grouped = useMemo(() => {
     const map = new Map();
     for (const r of requests) {
@@ -54,6 +54,7 @@ const MyBookings = () => {
       }
       map.get(key).items.push(r);
     }
+
     // newest first: using max request_id inside group
     const arr = Array.from(map.values());
     arr.sort((a, b) => {
@@ -65,16 +66,16 @@ const MyBookings = () => {
   }, [requests]);
 
   if (loading) {
-    return <div className="container-fluid px-4 py-4">Loading bookings...</div>;
+    return <div className="container-fluid px-4 py-4">Loading requests...</div>;
   }
 
   return (
     <div className="container-fluid px-4 py-4">
-      <h2 className="fw-bold mb-4">My Bookings</h2>
+      <h2 className="fw-bold mb-4">My Requests</h2>
 
       {requests.length === 0 ? (
         <div className="alert alert-info text-center">
-          You have not made any bookings yet.
+          You have not submitted any requests yet.
         </div>
       ) : (
         <div className="row g-4">
@@ -84,16 +85,16 @@ const MyBookings = () => {
                 <div className="d-flex justify-content-between align-items-center mb-2">
                   <div>
                     <h5 className="fw-bold mb-1">
-                      {group.request_group_id ? `Cart Request #${group.request_group_id}` : "Single Request"}
+                      {group.request_group_id
+                        ? `Basket Request #${group.request_group_id}`
+                        : "Single Request"}
                     </h5>
                     <div className="text-muted small">
                       <strong>Reason:</strong> {group.reason || "—"}
                     </div>
                   </div>
 
-                  <span className="badge bg-dark">
-                    {group.items.length} item(s)
-                  </span>
+                  <span className="badge bg-dark">{group.items.length} item(s)</span>
                 </div>
 
                 <div className="row g-3">
@@ -107,7 +108,7 @@ const MyBookings = () => {
                           <div className="img-frame">
                             <img
                               src={getImageUrl(req.image_url)}
-                              alt={req.item_name || "Item image"}
+                              alt={req.item_name || "Tool image"}
                               onError={(e) => {
                                 e.currentTarget.src =
                                   "https://via.placeholder.com/400x250?text=Image+Not+Found";
@@ -120,11 +121,15 @@ const MyBookings = () => {
 
                             <p>
                               <strong>From:</strong>{" "}
-                              {req.requested_start ? new Date(req.requested_start).toLocaleString() : "—"}
+                              {req.requested_start
+                                ? new Date(req.requested_start).toLocaleString()
+                                : "—"}
                             </p>
                             <p>
                               <strong>To:</strong>{" "}
-                              {req.requested_end ? new Date(req.requested_end).toLocaleString() : "—"}
+                              {req.requested_end
+                                ? new Date(req.requested_end).toLocaleString()
+                                : "—"}
                             </p>
 
                             {req.checked_out_at && (
@@ -143,7 +148,7 @@ const MyBookings = () => {
 
                             {status === "Rejected" && rejectionNote && (
                               <div className="alert alert-info py-2 mt-2 mb-2">
-                                <strong>Faculty message:</strong> {rejectionNote}
+                                <strong>Owner message:</strong> {rejectionNote}
                               </div>
                             )}
 

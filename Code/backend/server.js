@@ -92,7 +92,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// -------------------- Notifications Helpers --------------------
+// Notifications Helper
 const createNotification = async (user_id, title, message, type = "info") => {
   await query(
     `INSERT INTO notifications (user_id, title, message, type)
@@ -101,7 +101,7 @@ const createNotification = async (user_id, title, message, type = "info") => {
   );
 };
 
-// -------------------- Overdue Auto Mark --------------------
+// Overdue Auto Mark 
 const autoMarkOverdue = async () => {
   await query(`
     UPDATE borrowrequests
@@ -189,7 +189,7 @@ app.get("/api/getUser", authenticateToken, async (req, res) => {
   }
 });
 
-// -------------------- Notifications Routes --------------------
+// Notifications Routes
 app.get("/api/notifications", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -277,7 +277,7 @@ app.get("/api/categories", authenticateToken, async (req, res) => {
   }
 });
 
-// Optional: faculty can create categories
+// faculty can create categories
 app.post("/api/categories", authenticateToken, async (req, res) => {
   const { name, description } = req.body;
   if (!name || !String(name).trim()) return res.status(400).json({ error: "Category name is required." });
@@ -438,7 +438,6 @@ app.put("/api/edit-item", authenticateToken, async (req, res) => {
 });
 
 // -------------------- BORROW / BOOKINGS --------------------
-// (Everything below is your existing lifecycle + cart logic)
 
 app.post("/api/book-item", authenticateToken, async (req, res) => {
   const { item_id, requested_start, requested_end, reason } = req.body;
@@ -714,6 +713,128 @@ app.get("/api/item-requests", authenticateToken, async (req, res) => {
   }
 });
 
+/* ============================================================
+   OWNER BOOKING HISTORY + OWNER ITEMS (for filters)
+   Includes ALL requests (Pending/Approved/Rejected/CheckedOut/Returned/Overdue)
+   Search by student id / name / email / username
+   Filter by status / date range / item
+   ============================================================ */
+
+// Get items owned by current user (for item dropdown filter)
+app.get("/api/owner/items", authenticateToken, async (req, res) => {
+  try {
+    const items = await query(
+      `SELECT item_id, name
+       FROM items
+       WHERE owner_id = ?
+       ORDER BY name ASC`,
+      [req.user.userId]
+    );
+    res.json({ items });
+  } catch (err) {
+    console.error("owner items error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Owner booking history endpoint
+app.get("/api/owner/booking-history", authenticateToken, async (req, res) => {
+  try {
+    await autoMarkOverdue();
+
+    const ownerId = req.user.userId;
+
+    const {
+      search = "", // matches email/student_id/name/username
+      status = "", // Pending/Approved/Rejected/CheckedOut/Returned/Overdue
+      from = "", // date/iso (filters requested_start >= from)
+      to = "", // date/iso (filters requested_start <= to)
+      item_id = "", // numeric
+    } = req.query;
+
+    const where = [];
+    const params = [];
+
+    // must be owner's items
+    where.push("i.owner_id = ?");
+    params.push(ownerId);
+
+    // status filter
+    if (status && String(status).trim()) {
+      where.push("br.status = ?");
+      params.push(String(status).trim());
+    }
+
+    // item filter
+    if (item_id && !isNaN(Number(item_id))) {
+      where.push("br.item_id = ?");
+      params.push(Number(item_id));
+    }
+
+    // date filters (requested_start range)
+    if (from && String(from).trim()) {
+      where.push("br.requested_start >= ?");
+      params.push(String(from).trim());
+    }
+    if (to && String(to).trim()) {
+      where.push("br.requested_start <= ?");
+      params.push(String(to).trim());
+    }
+
+    // search (student id, name, email, username)
+    if (search && String(search).trim()) {
+      const s = `%${String(search).trim()}%`;
+      where.push(`
+        (
+          u.email LIKE ?
+          OR u.student_id LIKE ?
+          OR u.username LIKE ?
+          OR u.first_name LIKE ?
+          OR u.last_name LIKE ?
+          OR CONCAT(u.first_name, ' ', u.last_name) LIKE ?
+        )
+      `);
+      params.push(s, s, s, s, s, s);
+    }
+
+    const sql = `
+      SELECT
+        br.request_id,
+        br.item_id,
+        i.name AS item_name,
+        i.image_url AS item_image_url,
+
+        br.status,
+        br.requested_start,
+        br.requested_end,
+        br.reason,
+        br.rejectionReason,
+        br.request_group_id,
+        br.checked_out_at,
+        br.returned_at,
+
+        u.user_id AS borrower_user_id,
+        u.first_name,
+        u.last_name,
+        u.username AS borrower_username,
+        u.email AS borrower_email,
+        u.student_id AS borrower_student_id
+      FROM borrowrequests br
+      JOIN items i ON br.item_id = i.item_id
+      JOIN users u ON br.borrower_id = u.user_id
+      WHERE ${where.join(" AND ")}
+      ORDER BY br.request_id DESC
+      LIMIT 500
+    `;
+
+    const rows = await query(sql, params);
+    res.json({ requests: rows });
+  } catch (err) {
+    console.error("owner booking history error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 app.put("/api/request-status", authenticateToken, async (req, res) => {
   const { request_id, status, decision_note } = req.body;
 
@@ -784,7 +905,7 @@ app.put("/api/request-status", authenticateToken, async (req, res) => {
         reqRow.borrower_id,
         "Request approved",
         `Your request for "${reqRow.item_name}" was approved.`,
-        "success"
+        "Approved"
       );
     } else if (String(status).toLowerCase() === "rejected") {
       const notePart = decision_note ? ` Note: ${decision_note}` : "";
@@ -792,7 +913,7 @@ app.put("/api/request-status", authenticateToken, async (req, res) => {
         reqRow.borrower_id,
         "Request rejected",
         `Your request for "${reqRow.item_name}" was rejected.${notePart}`,
-        "danger"
+        "Rejected"
       );
     }
 
