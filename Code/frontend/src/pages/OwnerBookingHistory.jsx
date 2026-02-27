@@ -25,6 +25,29 @@ const getUserFromStorage = () => {
   }
 };
 
+// CSV helpers
+const csvEscape = (value) => {
+  if (value === null || value === undefined) return "";
+  const s = String(value);
+  // Wrap in quotes if it contains comma, quote, or newline
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+};
+
+const downloadCsv = (filename, rows) => {
+  const csv = rows.map((r) => r.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
+
 const OwnerBookingHistory = () => {
   const navigate = useNavigate();
 
@@ -33,6 +56,9 @@ const OwnerBookingHistory = () => {
 
   const [itemsLoading, setItemsLoading] = useState(true);
   const [ownerItems, setOwnerItems] = useState([]);
+
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState("");
 
   // Filters
   const [search, setSearch] = useState("");
@@ -44,44 +70,59 @@ const OwnerBookingHistory = () => {
   // Data
   const [requests, setRequests] = useState([]);
 
-  // Client-side guard: only Faculty/Admin
+  // Guard + role
   useEffect(() => {
     const user = getUserFromStorage();
-    const role = String(user?.user_type || "").toLowerCase();
+    const r = String(user?.user_type || "").toLowerCase();
+    setRole(r);
+    setIsAdmin(r === "admin");
 
-    // Adjust this if your "admin" role name differs
-    const allowed = role === "faculty" || role === "admin";
-
+    const allowed = r === "faculty" || r === "admin";
     if (!allowed) {
       alert("Not allowed. This page is for Faculty/Admin only.");
       navigate("/home");
     }
   }, [navigate]);
 
-  // Load owner items for dropdown
+  // Load items for dropdown
   useEffect(() => {
-    const loadOwnerItems = async () => {
+    const loadItems = async () => {
       try {
         setItemsLoading(true);
-        const items = await bookingsService.getOwnerItems();
-        setOwnerItems(items);
+
+        let items = [];
+        const user = getUserFromStorage();
+        const r = String(user?.user_type || "").toLowerCase();
+
+        if (r === "admin" && typeof bookingsService.getAllItemsForHistory === "function") {
+          items = await bookingsService.getAllItemsForHistory();
+        } else {
+          items = await bookingsService.getOwnerItems();
+        }
+
+        setOwnerItems(Array.isArray(items) ? items : []);
       } catch (e) {
-        // Not fatal — page can still work without item dropdown
         console.error(e);
       } finally {
         setItemsLoading(false);
       }
     };
 
-    loadOwnerItems();
+    loadItems();
   }, []);
 
   const loadHistory = async (filters = {}) => {
     try {
       setError("");
       setLoading(true);
-      const data = await bookingsService.getOwnerBookingHistory(filters);
-      setRequests(data);
+
+      const payload = {
+        ...filters,
+        admin_all: isAdmin ? "1" : "0",
+      };
+
+      const data = await bookingsService.getOwnerBookingHistory(payload);
+      setRequests(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
       setError(e.message || "Failed to load booking history.");
@@ -90,11 +131,11 @@ const OwnerBookingHistory = () => {
     }
   };
 
-  // Initial load
+  // Initial load (after role resolves)
   useEffect(() => {
     loadHistory({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAdmin]);
 
   const onApplyFilters = (e) => {
     e.preventDefault();
@@ -125,19 +166,66 @@ const OwnerBookingHistory = () => {
     return c;
   }, [requests]);
 
+  const onExportCsv = () => {
+    if (!requests.length) {
+      alert("Nothing to export (no rows in the table).");
+      return;
+    }
+
+    const header = [
+      "Request ID",
+      "Item ID",
+      "Tool",
+      "Borrower",
+      "Email",
+      "Student ID",
+      "Start",
+      "End",
+      "Status",
+      "Reason",
+      "Rejection Reason",
+    ];
+
+    const rows = requests.map((r) => {
+      const borrowerName =
+        `${r.first_name || ""} ${r.last_name || ""}`.trim() || r.borrower_username || "Unknown";
+
+      return [
+        r.request_id ?? "",
+        r.item_id ?? "",
+        r.item_name ?? "",
+        borrowerName,
+        r.borrower_email ?? "",
+        r.borrower_student_id ?? "",
+        formatDateTime(r.requested_start),
+        formatDateTime(r.requested_end),
+        r.status ?? "",
+        r.reason ?? "",
+        r.rejectionReason ?? "",
+      ];
+    });
+
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    downloadCsv(`booking-history-${stamp}.csv`, [header, ...rows]);
+  };
+
   return (
     <div className="container py-4">
       <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
         <div>
-          <h2 className="fw-bold mb-1">📚 Owner Booking History</h2>
+          <h2 className="fw-bold mb-1">Booking History</h2>
           <div className="text-muted">
-            View all booking requests for tools you own (Pending/Approved/Rejected/CheckedOut/Returned/Overdue).
+            {isAdmin
+              ? "Admin view: all booking requests in the system."
+              : "View all booking requests for tools you own (Pending/Approved/Rejected/CheckedOut/Returned/Overdue)."}
           </div>
         </div>
 
-        <button className="btn btn-outline-secondary" onClick={() => navigate(-1)}>
-          ← Back
-        </button>
+        <div className="d-flex gap-2">
+          <button className="btn btn-outline-success" onClick={onExportCsv} disabled={loading || requests.length === 0}>
+            ⬇ Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -151,7 +239,7 @@ const OwnerBookingHistory = () => {
                   className="form-control"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="e.g. 200479073, jeet, jeet@uregina.ca"
+                  placeholder="e.g. student ID, name, or email"
                 />
               </div>
 
@@ -167,7 +255,9 @@ const OwnerBookingHistory = () => {
               </div>
 
               <div className="col-12 col-md-3">
-                <label className="form-label fw-semibold">Tool (owned)</label>
+                <label className="form-label fw-semibold">
+                  {isAdmin ? "Tool (any)" : "Tool (owned)"}
+                </label>
                 <select
                   className="form-select"
                   value={itemId}
@@ -249,7 +339,9 @@ const OwnerBookingHistory = () => {
           {loading ? (
             <div className="text-muted">Loading booking history...</div>
           ) : requests.length === 0 ? (
-            <div className="text-muted">No booking requests found for your tools.</div>
+            <div className="text-muted">
+              {isAdmin ? "No booking requests found in the system." : "No booking requests found for your tools."}
+            </div>
           ) : (
             <div className="table-responsive">
               <table className="table table-hover align-middle">
@@ -321,7 +413,7 @@ const OwnerBookingHistory = () => {
               </table>
 
               <div className="small text-muted mt-2">
-                Tip: Use search to find a student by email, name, or student ID.
+                Tip: Use search to find a student by email, name, or student ID. Export CSV downloads the currently shown table.
               </div>
             </div>
           )}

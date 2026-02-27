@@ -1,62 +1,61 @@
 // config/database.js
+const mysql = require("mysql2");
+const bcrypt = require("bcryptjs");
 
-const mysql = require('mysql2');
-
-// Admin connection
+// Admin connection 
 const adminPool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
+  host: "localhost",
+  user: "root",
   port: 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
 });
 
 const adminDb = adminPool.promise();
 
-// Main connection
+// Main connection 
 const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  database: 'project',
+  host: "localhost",
+  user: "root",
+  database: "project",
+  port: 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
 });
 
 const db = pool.promise();
 
-// Safe query
+// Safe query helper
 const query = async (sql, params = []) => {
   try {
     const [results] = await db.execute(sql, params);
     return results;
   } catch (err) {
-    console.error('Query Error:', err.message);
+    console.error("Query Error:", err.message);
     throw err;
   }
 };
 
-// ONE-TIME SETUP
+// ONE-TIME SETUP 
 const setupDatabase = async () => {
   let conn;
   try {
-    console.log('Setting up database...');
+    console.log("Setting up database...");
     conn = await adminDb.getConnection();
 
-    await conn.query('CREATE DATABASE IF NOT EXISTS project');
-    await conn.query('USE project');
+    await conn.query("CREATE DATABASE IF NOT EXISTS project");
+    await conn.query("USE project");
     console.log('Database "project" ready');
 
-    // TABLES ------------------------------------------------------
-
-    // Users
+    // USERS
     await conn.query(`
       CREATE TABLE IF NOT EXISTS users (
         user_id INT NOT NULL AUTO_INCREMENT,
         email VARCHAR(100) NOT NULL,
         password VARCHAR(255) NOT NULL,
-        user_type ENUM('Faculty','Student') NOT NULL,
+        user_type ENUM('Faculty','Student','Admin') NOT NULL DEFAULT 'Student',
         username VARCHAR(100) DEFAULT NULL,
         first_name VARCHAR(100) DEFAULT NULL,
         last_name VARCHAR(100) DEFAULT NULL,
@@ -67,7 +66,7 @@ const setupDatabase = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // Faculties
+    // FACULTIES
     await conn.query(`
       CREATE TABLE IF NOT EXISTS faculties (
         faculty_id INT NOT NULL AUTO_INCREMENT,
@@ -78,7 +77,13 @@ const setupDatabase = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // Categories
+    // Seed default faculty (so faculty_id = 1 exists)
+    await conn.query(`
+      INSERT IGNORE INTO faculties (faculty_id, name, description)
+      VALUES (1, 'General', 'Default faculty');
+    `);
+
+    // CATEGORIES
     await conn.query(`
       CREATE TABLE IF NOT EXISTS categories (
         category_id INT NOT NULL AUTO_INCREMENT,
@@ -89,7 +94,7 @@ const setupDatabase = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // Items
+    // ITEMS
     await conn.query(`
       CREATE TABLE IF NOT EXISTS items (
         item_id INT NOT NULL AUTO_INCREMENT,
@@ -110,7 +115,23 @@ const setupDatabase = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // Borrow Requests
+    // REQUEST GROUPS (MISSING BEFORE)
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS request_groups (
+        group_id INT NOT NULL AUTO_INCREMENT,
+        borrower_id INT NOT NULL,
+        requested_start DATETIME NULL,
+        requested_end DATETIME NULL,
+        reason TEXT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (group_id),
+        KEY borrower_id (borrower_id),
+        CONSTRAINT request_groups_ibfk_1 FOREIGN KEY (borrower_id) REFERENCES users(user_id)
+          ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // BORROW REQUESTS (UPDATED STATUSES + COLUMNS)
     await conn.query(`
       CREATE TABLE IF NOT EXISTS borrowrequests (
         request_id INT NOT NULL AUTO_INCREMENT,
@@ -119,17 +140,31 @@ const setupDatabase = async () => {
         requested_start DATETIME NOT NULL,
         requested_end DATETIME NOT NULL,
         reason TEXT NOT NULL,
-        status ENUM('Pending','Approved','Rejected') DEFAULT 'Pending',
+        status ENUM('Pending','Approved','Rejected','CheckedOut','Returned','Overdue')
+          NOT NULL DEFAULT 'Pending',
         rejectionReason TEXT,
+        request_group_id INT NULL,
+        checked_out_at DATETIME NULL,
+        returned_at DATETIME NULL,
         PRIMARY KEY (request_id),
         KEY borrower_id (borrower_id),
         KEY item_id (item_id),
+        KEY request_group_id (request_group_id),
         CONSTRAINT borrowrequests_ibfk_1 FOREIGN KEY (borrower_id) REFERENCES users(user_id),
-        CONSTRAINT borrowrequests_ibfk_2 FOREIGN KEY (item_id) REFERENCES items(item_id)
+        CONSTRAINT borrowrequests_ibfk_2 FOREIGN KEY (item_id) REFERENCES items(item_id),
+        CONSTRAINT borrowrequests_ibfk_3 FOREIGN KEY (request_group_id) REFERENCES request_groups(group_id)
+          ON DELETE SET NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // Condition Images
+    // Index to speed up conflict checks
+    await conn.query(`
+      CREATE INDEX IF NOT EXISTS idx_conflict
+      ON borrowrequests (item_id, status, requested_start, requested_end);
+    `).catch(() => {
+    });
+
+    // CONDITION IMAGES
     await conn.query(`
       CREATE TABLE IF NOT EXISTS conditionimages (
         image_id INT NOT NULL AUTO_INCREMENT,
@@ -143,7 +178,7 @@ const setupDatabase = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    //  Notifications
+    // NOTIFICATIONS
     await conn.query(`
       CREATE TABLE IF NOT EXISTS notifications (
         notification_id INT NOT NULL AUTO_INCREMENT,
@@ -162,15 +197,36 @@ const setupDatabase = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    console.log('All tables created successfully!');
+    // OPTIONAL: seed a librarian admin if none exists
+    // Set ADMIN_EMAIL + ADMIN_PASSWORD in env before running DB_SETUP=1
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPass = process.env.ADMIN_PASSWORD;
+    if (adminEmail && adminPass) {
+      const existing = await conn.query(`SELECT user_id FROM users WHERE email = ? LIMIT 1`, [adminEmail]);
+      const rows = existing?.[0] || [];
+      if (!rows.length) {
+        const hash = await bcrypt.hash(adminPass, 10);
+        await conn.query(
+          `INSERT INTO users (email, password, user_type, username, first_name, last_name)
+           VALUES (?, ?, 'Admin', 'admin', 'Admin', 'Admin')`,
+          [adminEmail, hash]
+        );
+        console.log("Seeded Admin user:", adminEmail);
+      }
+    }
+
+    console.log("All tables created/updated successfully!");
   } catch (err) {
-    console.error('Database setup failed:', err.message);
+    console.error("Database setup failed:", err.message);
     process.exit(1);
   } finally {
     if (conn) conn.release();
   }
 };
 
-setupDatabase();
+// Run setup only when explicitly requested
+if (process.env.DB_SETUP === "1") {
+  setupDatabase();
+}
 
-module.exports = { db, query };
+module.exports = { db, query, setupDatabase };

@@ -22,10 +22,24 @@ const apiRequest = async (endpoint, options = {}) => {
       alert("Session expired. Please login again.");
       window.location.href = "/login";
     }
-    throw new Error(data.error || "Request failed");
+
+    const err = new Error(data.error || data.message || "Request failed");
+    err.status = res.status;
+    err.data = data;
+    throw err;
   }
 
   return data;
+};
+
+// Optional helper (handy in pages)
+export const getUserRole = () => {
+  try {
+    const u = JSON.parse(localStorage.getItem("user") || "null");
+    return String(u?.user_type || "").toLowerCase();
+  } catch {
+    return "";
+  }
 };
 
 // AUTH SERVICE
@@ -60,7 +74,6 @@ export const authService = {
 
 // ITEMS SERVICE
 export const itemsService = {
-  // categories for dropdown/filter
   getCategories: async () => {
     const d = await apiRequest("/api/categories");
     return d.categories || [];
@@ -71,7 +84,6 @@ export const itemsService = {
     return d.items || [];
   },
 
-  // calendar availability filter
   getAvailableItems: async (start, end) => {
     const d = await apiRequest(
       `/api/items/availability?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`
@@ -79,21 +91,18 @@ export const itemsService = {
     return d.items || [];
   },
 
-  // add item
   addItem: (formData) =>
     apiRequest("/api/items", {
       method: "POST",
       body: formData,
     }),
 
-  // edit item (supports category_id too)
   editItem: (item_id, { name, description, category_id }) =>
     apiRequest("/api/edit-item", {
       method: "PUT",
       body: JSON.stringify({ item_id, name, description, category_id }),
     }),
 
-  // delete item
   deleteItem: (id) =>
     apiRequest(`/api/items/${id}`, {
       method: "DELETE",
@@ -102,14 +111,12 @@ export const itemsService = {
 
 // BOOKINGS SERVICE
 export const bookingsService = {
-  // single item request (existing)
   bookItem: (data) =>
     apiRequest("/api/book-item", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
-  // CART submit (multiple items in one request)
   requestGroup: (payload) =>
     apiRequest("/api/request-group", {
       method: "POST",
@@ -121,7 +128,6 @@ export const bookingsService = {
     return d.requests || [];
   },
 
-  // Existing: faculty/owner incoming requests list
   getRequestedBookings: async () => {
     const d = await apiRequest("/api/item-requests");
     return d.requests || [];
@@ -133,37 +139,57 @@ export const bookingsService = {
       body: JSON.stringify({ request_id: requestId, status, decision_note }),
     }),
 
-  // CHECKOUT (Approved -> CheckedOut)
+  cancelRequest: async (requestId) => {
+    try {
+      return await apiRequest("/api/request-cancel", {
+        method: "PUT",
+        body: JSON.stringify({ request_id: requestId }),
+      });
+    } catch (err) {
+      const msg = String(err?.message || "").toLowerCase();
+      const isAlready =
+        err?.status === 409 ||
+        msg.includes("already") ||
+        msg.includes("cancel") ||
+        msg.includes("canceled") ||
+        msg.includes("cancelled");
+
+      if (isAlready) {
+        return { ok: true, status: "Cancelled", alreadyCancelled: true };
+      }
+
+      throw err;
+    }
+  },
+
   checkoutRequest: (requestId) =>
     apiRequest("/api/request-checkout", {
       method: "PUT",
       body: JSON.stringify({ request_id: requestId }),
     }),
 
-  // RETURN (CheckedOut/Overdue -> Returned)
   returnRequest: (requestId) =>
     apiRequest("/api/request-return", {
       method: "PUT",
       body: JSON.stringify({ request_id: requestId }),
     }),
 
-  // faculty overdue list
   getOverdueBookings: async () => {
     const d = await apiRequest("/api/overdue-requests");
     return d.requests || [];
   },
 
-  /* ============================================================
-     OWNER BOOKING HISTORY (all statuses + search/filter)
-     and OWNER ITEMS (for dropdown filter)
-     ============================================================ */
-
-  // For dropdown filter: items that belong to logged-in owner
+  // With the updated backend:
+  // - Faculty gets their owned items
+  // - Admin gets ALL items (because server.js now returns all for admin)
   getOwnerItems: async () => {
     const d = await apiRequest("/api/owner/items");
     return d.items || [];
   },
-  
+
+  // With the updated backend:
+  // - Faculty gets history for their owned items
+  // - Admin gets ALL history
   getOwnerBookingHistory: async (filters = {}) => {
     const qs = new URLSearchParams();
 
@@ -173,7 +199,10 @@ export const bookingsService = {
     if (filters.to) qs.set("to", filters.to);
     if (filters.item_id) qs.set("item_id", String(filters.item_id));
 
-    const d = await apiRequest(`/api/owner/booking-history?${qs.toString()}`);
+    const queryString = qs.toString();
+    const endpoint = queryString ? `/api/owner/booking-history?${queryString}` : `/api/owner/booking-history`;
+
+    const d = await apiRequest(endpoint);
     return d.requests || [];
   },
 };
@@ -191,4 +220,20 @@ export const notificationsService = {
     apiRequest("/api/notifications/read-all", {
       method: "PUT",
     }),
+};
+
+// ADMIN SERVICE
+export const adminService = {
+  getAllRequests: async ({ q = "", status = "", start = "", end = "" } = {}) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (status) params.set("status", status);
+    if (start) params.set("start", start);
+    if (end) params.set("end", end);
+
+    const d = await apiRequest(`/api/admin/requests?${params.toString()}`);
+    return d.requests || [];
+  },
+
+  getReportsSummary: () => apiRequest("/api/admin/reports/summary"),
 };

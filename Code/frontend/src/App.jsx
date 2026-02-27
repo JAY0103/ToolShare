@@ -47,16 +47,10 @@ function App() {
           <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/home" />} />
           <Route path="/home" element={user ? <Home searchTerm={searchTerm} /> : <Navigate to="/login" />} />
           <Route path="/" element={<Navigate to="/home" />} />
-
           <Route path="/add-item" element={isFacultyOrAdmin ? <AddItem /> : <Navigate to="/home" />} />
           <Route path="/book-item" element={user ? <BookItem /> : <Navigate to="/login" />} />
           <Route path="/my-bookings" element={user ? <MyBookings /> : <Navigate to="/login" />} />
-
-          <Route
-            path="/requested-bookings"
-            element={isFacultyOrAdmin ? <RequestedBookings /> : <Navigate to="/home" />}
-          />
-
+          <Route path="/requested-bookings"element={isFacultyOrAdmin ? <RequestedBookings /> : <Navigate to="/home" />} />
           <Route path="/edit-item" element={isFacultyOrAdmin ? <EditItem /> : <Navigate to="/home" />} />
           <Route path="/items" element={user ? <Items searchTerm={searchTerm} /> : <Navigate to="/login" />} />
           <Route path="/cart" element={user ? <Cart /> : <Navigate to="/login" />} />
