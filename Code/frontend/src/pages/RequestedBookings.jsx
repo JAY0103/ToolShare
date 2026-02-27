@@ -1,8 +1,20 @@
 // src/pages/RequestedBookings.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { bookingsService, API_BASE } from "../services/api";
 
+const RECENT_DAYS = 15;
+
+// Normalize statuses to lowercase for comparisons
+const OPEN_STATUSES = new Set(["pending", "approved", "checkedout", "overdue"]);
+
 const RequestedBookings = () => {
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const userType = String(user?.user_type || "").toLowerCase();
+
+  // Faculty/Admin can view incoming requests
+  // (Assumption: "tool owner" is Faculty; Admin always can)
+  const canViewIncoming = userType === "faculty" || userType === "admin";
+
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -13,6 +25,8 @@ const RequestedBookings = () => {
 
   const fetchRequests = async () => {
     try {
+      setLoading(true);
+
       const data = await bookingsService.getRequestedBookings();
       const list = Array.isArray(data) ? data : [];
       setRequests(list);
@@ -24,15 +38,21 @@ const RequestedBookings = () => {
         if (existingNote) initialNotes[r.request_id] = existingNote;
       });
       setNotes((prev) => ({ ...initialNotes, ...prev }));
+
+      // Debug (uncomment if needed)
+      // console.log("incoming requests:", list);
+      // console.log("statuses:", list.map((r) => r.status));
     } catch (err) {
-      alert("Failed to load incoming requests");
+      alert(err?.message || "Failed to load incoming requests");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRequests();
+    if (canViewIncoming) fetchRequests();
+    else setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getImageUrl = (p) => {
@@ -48,7 +68,7 @@ const RequestedBookings = () => {
       setRejectingId(null);
       alert("Request approved!");
     } catch (err) {
-      alert(err.message || "Failed to approve");
+      alert(err?.message || "Failed to approve");
     }
   };
 
@@ -66,7 +86,7 @@ const RequestedBookings = () => {
       setRejectingId(null);
       alert("Request rejected!");
     } catch (err) {
-      alert(err.message || "Failed to reject");
+      alert(err?.message || "Failed to reject");
     }
   };
 
@@ -77,7 +97,7 @@ const RequestedBookings = () => {
       await fetchRequests();
       alert("Checked out successfully!");
     } catch (err) {
-      alert(err.message || "Check out failed");
+      alert(err?.message || "Check out failed");
     }
   };
 
@@ -87,20 +107,65 @@ const RequestedBookings = () => {
       await fetchRequests();
       alert("Returned successfully!");
     } catch (err) {
-      alert(err.message || "Return failed");
+      alert(err?.message || "Return failed");
     }
   };
 
   const badgeClassForStatus = (status) => {
-    const s = (status || "").toLowerCase();
+    const s = String(status || "").toLowerCase();
     if (s === "approved") return "bg-success";
     if (s === "pending") return "bg-warning text-dark";
     if (s === "checkedout") return "bg-primary";
     if (s === "returned") return "bg-secondary";
     if (s === "overdue") return "bg-danger";
     if (s === "rejected") return "bg-danger";
+    if (s === "cancelled" || s === "canceled") return "bg-secondary";
     return "bg-dark";
   };
+
+  // Filter: only open + recent
+  const filteredRequests = useMemo(() => {
+    const now = Date.now();
+    const cutoff = now - RECENT_DAYS * 24 * 60 * 60 * 1000;
+
+    const toTime = (d) => {
+      const t = new Date(d).getTime();
+      return Number.isFinite(t) ? t : null;
+    };
+
+    return (requests || [])
+      .filter((r) => {
+        const status = String(r.status || "Pending").toLowerCase();
+        if (!OPEN_STATUSES.has(status)) return false;
+
+        // pick a reasonable "recency" timestamp
+        const candidate =
+          toTime(r.requested_start) ??
+          toTime(r.created_at) ??
+          toTime(r.updated_at) ??
+          toTime(r.requested_end);
+
+        // if backend doesn't send any date fields, keep it
+        if (!candidate) return true;
+
+        return candidate >= cutoff;
+      })
+      .sort((a, b) => {
+        const aT = new Date(a.requested_start || a.created_at || a.updated_at || 0).getTime();
+        const bT = new Date(b.requested_start || b.created_at || b.updated_at || 0).getTime();
+        return (bT || 0) - (aT || 0);
+      });
+  }, [requests]);
+
+  if (!canViewIncoming) {
+    return (
+      <div className="container-fluid px-4 py-4">
+        <div className="alert alert-warning">
+          You don’t have permission to view incoming requests.
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return <div className="container-fluid px-4 py-4">Loading incoming requests...</div>;
@@ -108,14 +173,27 @@ const RequestedBookings = () => {
 
   return (
     <div className="container-fluid px-4 py-4">
-      <h2 className="fw-bold mb-4">Incoming Requests</h2>
+      <div className="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div>
+          <h2 className="fw-bold mb-2">Incoming Requests</h2>
+          <div className="text-muted mb-4">
+            Showing <strong>open</strong> requests from the last <strong>{RECENT_DAYS}</strong> days.
+          </div>
+        </div>
 
-      {requests.length === 0 ? (
-        <div className="alert alert-info text-center">No incoming requests found.</div>
+        <button onClick={fetchRequests} className="btn btn-outline-primary btn-sm">
+          Refresh
+        </button>
+      </div>
+
+      {filteredRequests.length === 0 ? (
+        <div className="alert alert-info text-center">No recent open incoming requests found.</div>
       ) : (
         <div className="row g-4">
-          {requests.map((req) => {
-            const status = req.status || "Pending";
+          {filteredRequests.map((req) => {
+            const rawStatus = req.status || "Pending";
+            const status = String(rawStatus).toLowerCase();
+
             const requesterName =
               req.borrower_name ||
               `${req.first_name || ""} ${req.last_name || ""}`.trim() ||
@@ -140,10 +218,9 @@ const RequestedBookings = () => {
                   <div className="card-body d-flex flex-column">
                     <div className="d-flex justify-content-between align-items-start gap-2">
                       <h5 className="card-title mb-2">{req.item_name}</h5>
-                      <span className={`badge ${badgeClassForStatus(status)}`}>{status}</span>
+                      <span className={`badge ${badgeClassForStatus(rawStatus)}`}>{rawStatus}</span>
                     </div>
 
-                    {/* Basket group id (if requested via basket) */}
                     {req.request_group_id ? (
                       <div className="text-muted small mb-2">
                         <strong>Basket Group:</strong> #{req.request_group_id}
@@ -167,10 +244,10 @@ const RequestedBookings = () => {
                       <strong>Reason:</strong> {req.reason || "—"}
                     </p>
 
-                    {/* lifecycle timestamps (optional display) */}
                     {req.checked_out_at && (
                       <p className="mb-1">
-                        <strong>Checked out:</strong> {new Date(req.checked_out_at).toLocaleString()}
+                        <strong>Checked out:</strong>{" "}
+                        {new Date(req.checked_out_at).toLocaleString()}
                       </p>
                     )}
                     {req.returned_at && (
@@ -179,8 +256,8 @@ const RequestedBookings = () => {
                       </p>
                     )}
 
-                    {/* Reject textbox only if Pending and user clicked Reject */}
-                    {status === "Pending" && rejectingId === req.request_id && (
+                    {/* Rejection textarea */}
+                    {status === "pending" && rejectingId === req.request_id && (
                       <div className="mb-2">
                         <label className="form-label mb-1">
                           Rejection reason <span className="text-danger">*</span>
@@ -203,16 +280,16 @@ const RequestedBookings = () => {
                       </div>
                     )}
 
-                    {/* Show note if not pending and note exists */}
-                    {status !== "Pending" && noteFromServer && (
+                    {/* Note from server (after decision) */}
+                    {status !== "pending" && noteFromServer && (
                       <div className="alert alert-info py-2 mt-2 mb-2">
                         <strong>Message to requester:</strong> {noteFromServer}
                       </div>
                     )}
 
-                    {/* ACTIONS */}
+                    {/* Actions */}
                     <div className="mt-auto d-flex gap-2">
-                      {status === "Pending" ? (
+                      {status === "pending" ? (
                         rejectingId === req.request_id ? (
                           <>
                             <button
@@ -244,18 +321,18 @@ const RequestedBookings = () => {
                             </button>
                           </>
                         )
-                      ) : status === "Approved" ? (
+                      ) : status === "approved" ? (
                         <button
                           onClick={() => handleCheckout(req.request_id)}
                           className="btn btn-primary btn-sm flex-fill"
                         >
                           Check Out
                         </button>
-                      ) : status === "CheckedOut" || status === "Overdue" ? (
+                      ) : status === "checkedout" || status === "overdue" ? (
                         <button
                           onClick={() => handleReturn(req.request_id)}
                           className={`btn btn-sm flex-fill ${
-                            status === "Overdue" ? "btn-danger" : "btn-warning"
+                            status === "overdue" ? "btn-danger" : "btn-warning"
                           }`}
                         >
                           Return

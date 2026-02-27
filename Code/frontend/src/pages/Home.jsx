@@ -61,6 +61,15 @@ const Home = ({ searchTerm = "" }) => {
   const normStatus = (s) => String(s || "").toLowerCase().replace(/\s+/g, "");
   const isStatus = (s, target) => normStatus(s) === normStatus(target);
 
+  // ✅ Robust status getter (handles different backend field names)
+  const getStatusValue = (r) =>
+    r?.status ??
+    r?.booking_status ??
+    r?.request_status ??
+    r?.bookingStatus ??
+    r?.requestStatus ??
+    "";
+
   // student-friendly labels
   const displayStatus = (s) => {
     const v = normStatus(s);
@@ -70,7 +79,7 @@ const Home = ({ searchTerm = "" }) => {
     if (v === "checkedout") return "Checked Out";
     if (v === "returned") return "Returned";
     if (v === "overdue") return "Overdue";
-    if (v === "cancelled" ) return "Cancelled";
+    if (v === "cancelled") return "Cancelled";
     return s || "—";
   };
 
@@ -82,7 +91,7 @@ const Home = ({ searchTerm = "" }) => {
     if (v === "checkedout") return "bg-primary";
     if (v === "returned") return "bg-secondary";
     if (v === "overdue") return "bg-dark";
-    if (v === "canceled" ) return "bg-secondary";
+    if (v === "canceled" || v === "cancelled") return "bg-secondary"; 
     return "bg-dark";
   };
 
@@ -111,8 +120,16 @@ const Home = ({ searchTerm = "" }) => {
     return t < Date.now();
   };
 
-  // created date helper
-  const getRequestCreatedDate = (r) => r?.created_at || r?.createdAt || r?.request_date || null;
+  // Better created date helper
+  const getRequestCreatedDate = (r) =>
+    r?.created_at ||
+    r?.createdAt ||
+    r?.requested_at ||
+    r?.requestedAt ||
+    r?.updated_at ||
+    r?.updatedAt ||
+    r?.request_date ||
+    null;
 
   // ----------- API action resolver -----------
   const callStatusUpdate = async (requestId, nextStatus) => {
@@ -411,11 +428,15 @@ const Home = ({ searchTerm = "" }) => {
   const recentStudent = useMemo(() => {
     if (isStaff) return [];
     const arr = safeArr(myRequests).slice();
+
     arr.sort((a, b) => {
-      const da = new Date(getRequestCreatedDate(a) || a.requested_start || 0).getTime();
-      const db = new Date(getRequestCreatedDate(b) || b.requested_start || 0).getTime();
+      const daRaw = getRequestCreatedDate(a);
+      const dbRaw = getRequestCreatedDate(b);
+      const da = daRaw ? new Date(daRaw).getTime() : Number(a?.request_id || 0);
+      const db = dbRaw ? new Date(dbRaw).getTime() : Number(b?.request_id || 0);
       return db - da;
     });
+
     return arr.slice(0, 3);
   }, [myRequests, isStaff]);
 
@@ -425,7 +446,7 @@ const Home = ({ searchTerm = "" }) => {
     const arr = safeArr(incomingRequests);
     return arr
       .filter((r) => isWithinToday(r.requested_start))
-      .filter((r) => isStatus(r.status, "Approved"))
+      .filter((r) => isStatus(getStatusValue(r), "Approved"))
       .sort((a, b) => new Date(a.requested_start) - new Date(b.requested_start));
   }, [incomingRequests, isFaculty]);
 
@@ -435,7 +456,7 @@ const Home = ({ searchTerm = "" }) => {
     return arr
       .filter((r) => isWithinToday(r.requested_end))
       .filter((r) => {
-        const st = normStatus(r.status);
+        const st = normStatus(getStatusValue(r));
         return st === "checkedout" || st === "overdue";
       })
       .sort((a, b) => new Date(a.requested_end) - new Date(b.requested_end));
@@ -460,7 +481,7 @@ const Home = ({ searchTerm = "" }) => {
         if (created) return isWithinLastHours(created, RECENT_HOURS);
         return isWithinLastHours(r.requested_start, RECENT_HOURS);
       })
-      .filter((r) => isStatus(r.status, "Pending"))
+      .filter((r) => isStatus(getStatusValue(r), "Pending"))
       .sort((a, b) => {
         const da = new Date(getRequestCreatedDate(a) || a.requested_start || 0).getTime();
         const db = new Date(getRequestCreatedDate(b) || b.requested_start || 0).getTime();
@@ -484,7 +505,7 @@ const Home = ({ searchTerm = "" }) => {
     if (!isAdmin) return [];
     const arr = safeArr(adminRequests);
     return arr
-      .filter((r) => isStatus(r.status, "Pending"))
+      .filter((r) => isStatus(getStatusValue(r), "Pending"))
       .sort((a, b) => {
         const da = new Date(getRequestCreatedDate(a) || a.requested_start || 0).getTime();
         const db = new Date(getRequestCreatedDate(b) || b.requested_start || 0).getTime();
@@ -498,7 +519,7 @@ const Home = ({ searchTerm = "" }) => {
     const arr = safeArr(adminRequests);
 
     const list = arr.filter((r) => {
-      const st = normStatus(r.status);
+      const st = normStatus(getStatusValue(r));
       const checkedOutish = st === "checkedout" || st === "overdue";
       if (!checkedOutish) return false;
       if (st === "overdue") return true;
@@ -514,7 +535,7 @@ const Home = ({ searchTerm = "" }) => {
     if (!isAdmin) return [];
     const arr = safeArr(adminRequests);
     return arr
-      .filter((r) => isStatus(r.status, "Approved"))
+      .filter((r) => isStatus(getStatusValue(r), "Approved"))
       .filter((r) => isWithinToday(r.requested_start))
       .sort((a, b) => new Date(a.requested_start) - new Date(b.requested_start))
       .slice(0, 10);
@@ -525,7 +546,7 @@ const Home = ({ searchTerm = "" }) => {
     const arr = safeArr(adminRequests);
     return arr
       .filter((r) => {
-        const st = normStatus(r.status);
+        const st = normStatus(getStatusValue(r));
         return st === "checkedout" || st === "overdue";
       })
       .filter((r) => isWithinToday(r.requested_end))
@@ -779,6 +800,7 @@ const Home = ({ searchTerm = "" }) => {
                         {adminDueToday.map((r) => {
                           const rid = r.request_id;
                           const busy = !!actionBusy[rid];
+                          const statusVal = getStatusValue(r);
                           return (
                             <tr key={rid}>
                               <td className="fw-bold">{r.item_name || "Tool"}</td>
@@ -787,7 +809,7 @@ const Home = ({ searchTerm = "" }) => {
                                 {r.requested_end ? new Date(r.requested_end).toLocaleTimeString() : "—"}
                               </td>
                               <td>
-                                <span className={`badge ${badgeClassForStatus(r.status)}`}>{displayStatus(r.status)}</span>
+                                <span className={`badge ${badgeClassForStatus(statusVal)}`}>{displayStatus(statusVal)}</span>
                               </td>
                               <td>
                                 <button
@@ -843,9 +865,7 @@ const Home = ({ searchTerm = "" }) => {
                     <ol className="mb-0">
                       {reports.topBorrowers.slice(0, 5).map((b) => (
                         <li key={b.user_id}>
-                          {(b.first_name || b.last_name)
-                            ? `${b.first_name || ""} ${b.last_name || ""}`.trim()
-                            : b.email}
+                          {b.first_name || b.last_name ? `${b.first_name || ""} ${b.last_name || ""}`.trim() : b.email}
                           <span className="text-muted"> — {b.total_requests} requests</span>
                         </li>
                       ))}
@@ -887,7 +907,9 @@ const Home = ({ searchTerm = "" }) => {
                     {recentStudent.map((r) => {
                       const rid = r.request_id;
                       const busy = !!actionBusy[rid];
-                      const st = normStatus(r.status);
+
+                      const statusVal = getStatusValue(r);
+                      const st = normStatus(statusVal);
                       const canCancel = st === "pending";
 
                       return (
@@ -902,7 +924,7 @@ const Home = ({ searchTerm = "" }) => {
                             </div>
                           </td>
                           <td>
-                            <span className={`badge ${badgeClassForStatus(r.status)}`}>{displayStatus(r.status)}</span>
+                            <span className={`badge ${badgeClassForStatus(statusVal)}`}>{displayStatus(statusVal)}</span>
                           </td>
                           <td>
                             {canCancel ? (
@@ -1000,6 +1022,7 @@ const Home = ({ searchTerm = "" }) => {
                         {facultyRecentIncoming.map((r) => {
                           const rid = r.request_id;
                           const busy = !!actionBusy[rid];
+                          const statusVal = getStatusValue(r);
 
                           return (
                             <tr key={rid}>
@@ -1007,7 +1030,6 @@ const Home = ({ searchTerm = "" }) => {
 
                               <td>
                                 <div className="fw-bold">{r.email || r.borrower_name || "Requester"}</div>
-                                <div className="text-muted small">Student ID: {r.student_id || "—"}</div>
                               </td>
 
                               <td className="small">
@@ -1020,7 +1042,7 @@ const Home = ({ searchTerm = "" }) => {
                               </td>
 
                               <td>
-                                <span className={`badge ${badgeClassForStatus(r.status)}`}>{displayStatus(r.status)}</span>
+                                <span className={`badge ${badgeClassForStatus(statusVal)}`}>{displayStatus(statusVal)}</span>
                               </td>
 
                               <td>
@@ -1089,7 +1111,6 @@ const Home = ({ searchTerm = "" }) => {
                               <td className="fw-bold">{r.item_name || "Tool"}</td>
                               <td>
                                 <div className="fw-bold">{r.email || r.borrower_name || "Requester"}</div>
-                                <div className="text-muted small">Student ID: {r.student_id || "—"}</div>
                               </td>
                               <td className="small">
                                 {r.requested_start ? new Date(r.requested_start).toLocaleTimeString() : "—"}
@@ -1140,18 +1161,19 @@ const Home = ({ searchTerm = "" }) => {
                         {todayDues.map((r) => {
                           const rid = r.request_id;
                           const busy = !!actionBusy[rid];
+                          const statusVal = getStatusValue(r);
+
                           return (
                             <tr key={rid}>
                               <td className="fw-bold">{r.item_name || "Tool"}</td>
                               <td>
                                 <div className="fw-bold">{r.email || r.borrower_name || "Requester"}</div>
-                                <div className="text-muted small">Student ID: {r.student_id || "—"}</div>
                               </td>
                               <td className="small">
                                 {r.requested_end ? new Date(r.requested_end).toLocaleTimeString() : "—"}
                               </td>
                               <td>
-                                <span className={`badge ${badgeClassForStatus(r.status)}`}>{displayStatus(r.status)}</span>
+                                <span className={`badge ${badgeClassForStatus(statusVal)}`}>{displayStatus(statusVal)}</span>
                               </td>
                               <td>
                                 <button

@@ -72,7 +72,8 @@ const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
-    if (!allowedMime.has(file.mimetype)) return cb(new Error("Only JPEG/PNG/WebP images are allowed"));
+    if (!allowedMime.has(file.mimetype))
+      return cb(new Error("Only JPEG/PNG/WebP images are allowed"));
     cb(null, true);
   },
 });
@@ -131,7 +132,11 @@ app.post("/api/register", async (req, res) => {
       [first_name, last_name, student_id, username, email, hashedPassword]
     );
 
-    const token = jwt.sign({ userId: result.insertId, email, role: "Student" }, JWT_SECRET, { expiresIn: "24h" });
+    const token = jwt.sign(
+      { userId: result.insertId, email, role: "Student" },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
 
     res.json({
       message: "Registered successfully.",
@@ -164,9 +169,11 @@ app.post("/api/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    const token = jwt.sign({ userId: user.user_id, email: user.email, role: user.user_type }, JWT_SECRET, {
-      expiresIn: "24h",
-    });
+    const token = jwt.sign(
+      { userId: user.user_id, email: user.email, role: user.user_type },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
 
     res.json({
       message: "Login successful",
@@ -748,13 +755,15 @@ app.get("/api/my-requests", authenticateToken, async (req, res) => {
   }
 });
 
-// Owner incoming requests (owner view)
+// Owner incoming requests (owner view)  ✅ UPDATED: Admin can see ALL
 app.get("/api/item-requests", authenticateToken, async (req, res) => {
   try {
     await autoMarkOverdue();
 
-    const borrowRequests = await query(
-      `
+    // Only faculty/admin should access incoming requests
+    if (!isStaff(req)) return res.status(403).json({ error: "Forbidden" });
+
+    let sql = `
       SELECT br.request_id, br.item_id, br.status, br.requested_start, br.requested_end,
              br.reason, br.rejectionReason,
              br.request_group_id,
@@ -764,12 +773,20 @@ app.get("/api/item-requests", authenticateToken, async (req, res) => {
       FROM borrowrequests br
       JOIN items i ON br.item_id = i.item_id
       JOIN users u ON br.borrower_id = u.user_id
-      WHERE i.owner_id = ?
-      ORDER BY br.request_id DESC
-      `,
-      [req.user.userId]
-    );
+    `;
 
+    const params = [];
+
+    // Faculty (tool owner): only requests for their items
+    // Admin: no filter (sees everything)
+    if (!isAdmin(req)) {
+      sql += ` WHERE i.owner_id = ? `;
+      params.push(req.user.userId);
+    }
+
+    sql += ` ORDER BY br.request_id DESC `;
+
+    const borrowRequests = await query(sql, params);
     res.json({ requests: borrowRequests });
   } catch (err) {
     console.error("item-requests error:", err);
