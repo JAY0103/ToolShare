@@ -7,13 +7,13 @@ const multer = require("multer");
 const cors = require("cors");
 const fs = require("fs");
 const crypto = require("crypto");
+const mysql = require("mysql2");
 
-const { query } = require("./config/database");
 
 // -------------------- Constants --------------------
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "toolshare-2025-final-project";
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://50.16.124.202"
 
 // -------------------- Create app --------------------
 const app = express();
@@ -34,6 +34,30 @@ app.use(
 
 // Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// MySQL Connection
+const db = mysql.createConnection({
+  host: "localhost",
+  port: "3306",
+  user: "toolshare",
+  password: "",
+  database: "project",
+});
+
+db.connect((err) => {
+  if (err) throw err;
+  console.log("Connected to MySQL database.");
+});
+
+// Helper: Query function
+const query = async (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
 
 // -------------------- Auth Middleware --------------------
 const authenticateToken = (req, res, next) => {
@@ -1267,6 +1291,6 @@ app.use((err, req, res, next) => {
 });
 
 // -------------------- Start Server --------------------
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on http://52.73.136.15:${PORT}`);
 });

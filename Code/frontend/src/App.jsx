@@ -13,7 +13,7 @@ import RequestedBookings from "./pages/RequestedBookings";
 import EditItem from "./pages/EditItem";
 import Items from "./pages/Items";
 import Cart from "./pages/Cart";
-import OwnerBookingHistory from "./pages/Ownerbookinghistory";
+import OwnerBookingHistory from "./pages/OwnerBookingHistory";
 
 function App() {
   const [user, setUser] = useState(null);
