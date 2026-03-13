@@ -41,6 +41,9 @@ const Login = () => {
               <div className="mb-4">
                 <label className="form-label">Password</label>
                 <input type="password" name="password" className="form-control form-control-lg" placeholder="Enter password" onChange={handleChange} required />
+              </div> 
+	      <div className="text-end mb-3">
+              	<Link to="/forgot-password" style={{ color: '#007847', fontSize: '0.9rem' }}>Forgot password?</Link>
               </div>
               <button type="submit" disabled={loading} className="btn w-100 text-white" style={{ backgroundColor: '#007847', padding: '14px' }}>
                 {loading ? 'Logging in...' : 'Login'}
