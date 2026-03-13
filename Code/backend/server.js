@@ -13,7 +13,7 @@ const mysql = require("mysql2");
 // -------------------- Constants --------------------
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "toolshare-2025-final-project";
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://54.236.19.203"
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://54.85.60.202"
 
 // -------------------- Create app --------------------
 const app = express();
@@ -25,7 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 // CORS (safe defaults for JWT in Authorization header)
 app.use(
   cors({
-    origin: FRONTEND_URL,
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -554,7 +554,9 @@ app.post("/api/book-item", authenticateToken, async (req, res) => {
     if (metaRows.length > 0) {
       const m = metaRows[0];
       const borrowerName = `${m.first_name || ""} ${m.last_name || ""}`.trim() || m.username || "A student";
-      await createNotification(m.owner_id, "New borrow request", `${borrowerName} requested "${m.item_name}".`, "request");
+      createNotification(m.owner_id, "New borrow request", `${borrowerName} requested "${m.item_name}".`, "request").catch(err => {
+    console.error("Notification failed:", err);
+  });
     }
 
     res.json({ message: "Borrow request submitted successfully", request_id: result.insertId });
@@ -664,12 +666,14 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
     for (const [owner_id, agg] of ownerAgg.entries()) {
       const sampleNames = agg.itemNames.slice(0, 3).join(", ");
       const more = agg.itemNames.length > 3 ? ` +${agg.itemNames.length - 3} more` : "";
-      await createNotification(
+      createNotification(
         owner_id,
         "New basket request",
         `${borrowerName} requested ${agg.count} item(s): ${sampleNames}${more}`,
         "request"
-      );
+      ).catch(err => {
+    console.error("Notification failed:", err);
+  });
     }
 
     res.json({
@@ -731,20 +735,24 @@ app.put("/api/request-cancel", authenticateToken, async (req, res) => {
     );
 
     // notify owner
-    await createNotification(
+    createNotification(
       r.owner_id,
       "Request cancelled",
       `A student cancelled their request for "${r.item_name}".`,
       "cancelled"
-    );
+    ).catch(err => {
+    console.error("Notification failed:", err);
+  });
 
     // notify borrower (optional)
-    await createNotification(
+    createNotification(
       r.borrower_id,
       "Request cancelled",
       `You cancelled your request for "${r.item_name}".`,
       "cancelled"
-    );
+    ).catch(err => {
+    console.error("Notification failed:", err);
+  });
 
     res.json({ message: "Request cancelled successfully." });
   } catch (err) {
@@ -1101,20 +1109,24 @@ app.put("/api/request-status", authenticateToken, async (req, res) => {
     ]);
 
     if (status === "Approved") {
-      await createNotification(
+      createNotification(
         reqRow.borrower_id,
         "Request approved",
         `Your request for "${reqRow.item_name}" was approved.`,
         "approved"
-      );
+      ).catch(err => {
+    console.error("Notification failed:", err);
+  });
     } else {
       const notePart = decision_note ? ` Note: ${decision_note}` : "";
-      await createNotification(
+      createNotification(
         reqRow.borrower_id,
         "Request rejected",
         `Your request for "${reqRow.item_name}" was rejected.${notePart}`,
         "rejected"
-      );
+      ).catch(err => {
+    console.error("Notification failed:", err);
+  });
     }
 
     res.json({ message: "Request status updated successfully." });
@@ -1164,12 +1176,14 @@ app.put("/api/request-checkout", authenticateToken, async (req, res) => {
       [request_id]
     );
 
-    await createNotification(
+    createNotification(
       r.borrower_id,
       "Item checked out",
       `Your booking for "${r.item_name}" has been checked out.`,
       "checkedout"
-    );
+    ).catch(err => {
+    console.error("Notification failed:", err);
+  });
 
     res.json({ message: "Checked out successfully" });
   } catch (err) {
@@ -1218,12 +1232,14 @@ app.put("/api/request-return", authenticateToken, async (req, res) => {
       [request_id]
     );
 
-    await createNotification(
+    createNotification(
       r.borrower_id,
       "Item returned",
       `Your booking for "${r.item_name}" has been marked returned.`,
       "returned"
-    );
+    ).catch(err => {
+    console.error("Notification failed:", err);
+  });
 
     res.json({ message: "Returned successfully" });
   } catch (err) {
