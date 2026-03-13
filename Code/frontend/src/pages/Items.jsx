@@ -166,7 +166,7 @@ const Items = ({ searchTerm = "" }) => {
         {/* Student-only Basket button */}
         {!isStaff && (
           <button className="btn btn-outline-success fw-bold" onClick={() => navigate("/cart")}>
-            🧺 Go to Basket
+            <i className="bi bi-basket3"></i>  Go to Basket
           </button>
         )}
       </div>
