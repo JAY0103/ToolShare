@@ -1133,13 +1133,15 @@ app.put("/api/request-status", authenticateToken, async (req, res) => {
     const rows = await query(
       `
       SELECT br.request_id, br.item_id, br.borrower_id, br.requested_start, br.requested_end,
-             br.status AS current_status,
-             i.owner_id,
-             i.name AS item_name
-      FROM borrowrequests br
-      JOIN items i ON br.item_id = i.item_id
-      WHERE br.request_id = ?
-      LIMIT 1
+       br.status AS current_status,
+       i.owner_id,
+       i.name AS item_name,
+       u.email
+	FROM borrowrequests br
+	JOIN items i ON br.item_id = i.item_id
+	JOIN users u ON br.borrower_id = u.user_id
+	WHERE br.request_id = ?
+	LIMIT 1
       `,
       [request_id]
     );
@@ -1186,6 +1188,10 @@ LIMIT 1;
     ]);
 
     if (status === "Approved") {
+
+	sendApprovedEmail(reqRow.email, reqRow.item_name)
+        .catch(err => console.error("Returned email failed:", err));
+
       createNotification(
         reqRow.borrower_id,
         "Request approved",
@@ -1197,7 +1203,7 @@ LIMIT 1;
     } else {
       const notePart = decision_note ? ` Note: ${decision_note}` : "";
 
-	sendReturnedEmail(reqRow.email, reqRow.item_name. notePart)
+	sendRejectedEmail(reqRow.email, reqRow.item_name, notePart)
   	.catch(err => console.error("Returned email failed:", err));
 
       createNotification(
