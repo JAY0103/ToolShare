@@ -8,7 +8,7 @@ const cors = require("cors");
 const fs = require("fs");
 const crypto = require("crypto");
 const mysql = require("mysql2");
-
+const nodemailer = require("nodemailer");
 
 // -------------------- Constants --------------------
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
@@ -31,6 +31,38 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+//Email function
+const mailer = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  auth: {
+    user:"toolsharecapstone@gmail.com",
+    pass:"jawz tnov jchw atgl"
+  },
+});
+
+async function sendReturnedEmail(toEmail, itemName) {
+  if (!toEmail) return;
+
+  await mailer.sendMail({
+    from: `"ToolShare" <toolsharecapstone@gmail.com>`,
+    to: toEmail,
+    subject: "ToolShare: Item Returned",
+    text: `Hello,
+
+Your ToolShare booking for ${itemName} has been marked as returned.
+
+Thank you for using ToolShare.`,
+    
+    html: `
+      <p>Hello,</p>
+      <p>Your ToolShare booking for <strong>TEST</strong> has been marked as <b>returned</b>.</p>
+      <p>Thank you for using ToolShare.</p>
+    `
+  });
+}
 
 // Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -1231,6 +1263,9 @@ app.put("/api/request-return", authenticateToken, async (req, res) => {
       `,
       [request_id]
     );
+
+	sendReturnedEmail("jpc053@uregina.ca", r.item_name)
+  	.catch(err => console.error("Returned email failed:", err));
 
     createNotification(
       r.borrower_id,
