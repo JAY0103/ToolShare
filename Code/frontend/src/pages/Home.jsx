@@ -61,7 +61,7 @@ const Home = ({ searchTerm = "" }) => {
   const normStatus = (s) => String(s || "").toLowerCase().replace(/\s+/g, "");
   const isStatus = (s, target) => normStatus(s) === normStatus(target);
 
-  // ✅ Robust status getter (handles different backend field names)
+  // Robust status getter (handles different backend field names)
   const getStatusValue = (r) =>
     r?.status ??
     r?.booking_status ??
@@ -91,7 +91,7 @@ const Home = ({ searchTerm = "" }) => {
     if (v === "checkedout") return "bg-primary";
     if (v === "returned") return "bg-secondary";
     if (v === "overdue") return "bg-dark";
-    if (v === "canceled" || v === "cancelled") return "bg-secondary"; 
+    if (v === "canceled" || v === "cancelled") return "bg-secondary";
     return "bg-dark";
   };
 
@@ -559,7 +559,10 @@ const Home = ({ searchTerm = "" }) => {
     <div className="container-fluid px-4 py-4">
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <div>
-          <h2 className="fw-bold mb-1">Welcome{user?.first_name ? `, ${user.first_name}` : ""} 👋</h2>
+          <h2 className="fw-bold mb-1">
+            Welcome{user?.first_name ? `, ${user.first_name}` : ""}{" "}
+            <i className="bi bi-hand-thumbs-up"></i>
+          </h2>
 
           <span className={`badge ${isAdmin ? "bg-dark" : isStaff ? "bg-warning text-dark" : "bg-success"}`}>
             {isAdmin ? "Admin Dashboard" : isStaff ? "Faculty Dashboard" : "Student Dashboard"}
@@ -680,7 +683,10 @@ const Home = ({ searchTerm = "" }) => {
               <div className="card p-3 shadow-sm h-100">
                 <div className="d-flex justify-content-between align-items-center mb-2">
                   <div>
-                    <h5 className="fw-bold mb-0">⏰ Overdue Items</h5>
+                    <h5 className="fw-bold mb-0">
+                      <i className="bi bi-clock-history me-2"></i>
+                      Overdue Items
+                    </h5>
                     <div className="text-muted small">Needs attention</div>
                   </div>
                 </div>
@@ -731,7 +737,10 @@ const Home = ({ searchTerm = "" }) => {
           <div className="row g-3 mb-4">
             <div className="col-12 col-lg-6">
               <div className="card p-3 shadow-sm h-100">
-                <h5 className="fw-bold mb-0">📦 Pickups Today</h5>
+                <h5 className="fw-bold mb-0">
+                  <i className="bi bi-box-seam me-2"></i>
+                  Pickups Today
+                </h5>
                 <div className="text-muted small mb-2">Approved + start today</div>
 
                 {adminPickupsToday.length === 0 ? (
@@ -779,7 +788,10 @@ const Home = ({ searchTerm = "" }) => {
 
             <div className="col-12 col-lg-6">
               <div className="card p-3 shadow-sm h-100">
-                <h5 className="fw-bold mb-0">↩ Due Today</h5>
+                <h5 className="fw-bold mb-0">
+                  <i className="bi bi-arrow-return-left me-2"></i>
+                  Due Today
+                </h5>
                 <div className="text-muted small mb-2">Checked out + end today</div>
 
                 {adminDueToday.length === 0 ? (
@@ -836,7 +848,8 @@ const Home = ({ searchTerm = "" }) => {
             <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
               <h5 className="fw-bold mb-0">Reports</h5>
               <button className="btn btn-outline-dark fw-bold btn-sm" onClick={() => exportRequestsCSV(adminRequests)}>
-                ⬇ Export CSV
+                <i className="bi bi-download me-2"></i>
+                Export CSV
               </button>
             </div>
 
@@ -1000,7 +1013,10 @@ const Home = ({ searchTerm = "" }) => {
               <div className="card p-3 shadow-sm">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <div>
-                    <h5 className="fw-bold mb-0">📥 Recent Incoming Requests</h5>
+                    <h5 className="fw-bold mb-0">
+                      <i className="bi bi-inbox me-2"></i>
+                      Recent Incoming Requests
+                    </h5>
                   </div>
                 </div>
 

@@ -121,7 +121,7 @@ const Cart = () => {
       const remaining = cart.filter((c) => !createdIds.has(Number(c.item_id)));
       saveCart(remaining);
 
-      let msg = `✅ Request submitted!\nApproved for processing: ${created.length}`;
+      let msg = `Request submitted!\nApproved for processing: ${created.length}`;
       if (failed.length > 0) msg += `\nNot submitted: ${failed.length} (please adjust dates and try again)`;
       alert(msg);
 
@@ -145,7 +145,10 @@ const Cart = () => {
   return (
     <div className="container py-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="fw-bold mb-0">🧺 My Basket</h2>
+        <h2 className="fw-bold mb-0">
+          <i className="bi bi-basket3 me-2"></i>
+          My Basket
+        </h2>
       </div>
 
       {basketCount === 0 ? (
@@ -164,7 +167,7 @@ const Cart = () => {
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Example: Need tools for lab project / assignment…"
+              placeholder="Example: Need tools for lab project / assignment..."
             />
 
             {summary?.missing > 0 && (
@@ -253,7 +256,7 @@ const Cart = () => {
                         disabled={submitting}
                         title="Remove"
                       >
-                        ✕
+                        <i className="bi bi-x-lg"></i>
                       </button>
                     </div>
                   </div>
