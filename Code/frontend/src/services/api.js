@@ -1,5 +1,5 @@
 // frontend/src/services/api.js
-export const API_BASE = "http://50.16.124.202:3000";
+export const API_BASE = "http://54.236.19.203:3000";
 
 const apiRequest = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");

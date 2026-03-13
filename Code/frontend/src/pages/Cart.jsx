@@ -1,7 +1,7 @@
 // src/pages/Cart.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { bookingsService } from "../services/api";
+import { bookingsService, API_BASE } from "../services/api";
 
 const CART_KEY = "cart";
 
@@ -55,7 +55,7 @@ const Cart = () => {
   const getImageSrc = (image_url) => {
     if (!image_url) return "https://via.placeholder.com/400x250?text=ToolShare";
     if (image_url.startsWith("http")) return image_url;
-    return `http://localhost:3000${image_url}`;
+    return `${API_BASE}${image_url}`;
   };
 
   const removeItem = (item_id) => {
