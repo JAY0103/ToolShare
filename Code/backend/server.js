@@ -64,6 +64,50 @@ Thank you for using ToolShare.`,
   });
 }
 
+async function sendApprovedEmail(toEmail, itemName) {
+  if (!toEmail) return;
+
+  await mailer.sendMail({
+    from: `"ToolShare" <toolsharecapstone@gmail.com>`,
+    to: toEmail,
+    subject: "ToolShare: Request Approved",
+    text: `Hello,
+
+Your ToolShare booking for ${itemName} has been approved.
+
+Thank you for using ToolShare.`,
+
+    html: `
+      <p>Hello,</p>
+      <p>Your ToolShare booking for <strong>${itemName}</strong> has been marked as <b>approved</b>.</p>
+      <p>Thank you for using ToolShare.</p>
+    `
+  });
+}
+
+async function sendRejectedEmail(toEmail, itemName, rejectionReason) {
+  if (!toEmail) return;
+
+  await mailer.sendMail({
+    from: `"ToolShare" <toolsharecapstone@gmail.com>`,
+    to: toEmail,
+    subject: "ToolShare: Request Rejected",
+    text: `Hello,
+
+Your ToolShare booking for ${itemName} has been rejected.
+Reason: ${rejectionReason}
+
+Thank you for using ToolShare.`,
+
+    html: `
+      <p>Hello,</p>
+      <p>Your ToolShare booking for <strong>${itemName}</strong> has been marked as <b>rejected</b>.</p>
+      <p>Reason: ${rejectionReason}</p>
+      <p>Thank you for using ToolShare.</p>
+    `
+  });
+}
+
 // Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
@@ -1115,14 +1159,15 @@ app.put("/api/request-status", authenticateToken, async (req, res) => {
     if (status === "Approved") {
       const conflicts = await query(
         `
-        SELECT 1
-        FROM borrowrequests
-        WHERE item_id = ?
-          AND status IN ('Approved','CheckedOut','Overdue')
-          AND request_id <> ?
-          AND requested_start < ?
-          AND requested_end > ?
-        LIMIT 1
+SELECT br.request_id, u.email
+FROM borrowrequests br
+JOIN users u ON br.borrower_id = u.user_id
+WHERE br.item_id = ?
+  AND br.status IN ('Approved','CheckedOut','Overdue')
+  AND br.request_id <> ?
+  AND br.requested_start < ?
+  AND br.requested_end > ?
+LIMIT 1;
         `,
         [reqRow.item_id, request_id, reqRow.requested_end, reqRow.requested_start]
       );
@@ -1151,6 +1196,10 @@ app.put("/api/request-status", authenticateToken, async (req, res) => {
   });
     } else {
       const notePart = decision_note ? ` Note: ${decision_note}` : "";
+
+	sendReturnedEmail(reqRow.email, reqRow.item_name. notePart)
+  	.catch(err => console.error("Returned email failed:", err));
+
       createNotification(
         reqRow.borrower_id,
         "Request rejected",
@@ -1234,12 +1283,17 @@ app.put("/api/request-return", authenticateToken, async (req, res) => {
 
     const rows = await query(
       `
-      SELECT br.request_id, br.status, br.borrower_id,
-             i.owner_id, i.name AS item_name
-      FROM borrowrequests br
-      JOIN items i ON br.item_id = i.item_id
-      WHERE br.request_id = ?
-      LIMIT 1
+      SELECT br.request_id, 
+       br.status, 
+       br.borrower_id,
+       u.email AS borrower_email,
+       i.owner_id, 
+       i.name AS item_name
+	FROM borrowrequests br
+	JOIN items i ON br.item_id = i.item_id
+	JOIN users u ON br.borrower_id = u.user_id
+	WHERE br.request_id = ?
+	LIMIT 1;
       `,
       [request_id]
     );
@@ -1264,7 +1318,7 @@ app.put("/api/request-return", authenticateToken, async (req, res) => {
       [request_id]
     );
 
-	sendReturnedEmail("jpc053@uregina.ca", r.item_name)
+	 sendReturnedEmail(r.borrower_email, r.item_name)
   	.catch(err => console.error("Returned email failed:", err));
 
     createNotification(
