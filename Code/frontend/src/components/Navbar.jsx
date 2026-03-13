@@ -211,7 +211,7 @@ const Navbar = ({ onSearch }) => {
                     style={{ borderRadius: "999px", width: 54, height: 44 }}
                     title="Basket"
                   >
-                    🧺
+                    <i className="bi bi-basket3"></i>
                     {basketCount > 0 && (
                       <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                         {basketCount}
@@ -234,7 +234,7 @@ const Navbar = ({ onSearch }) => {
                         if (next) loadNotifications();
                       }}
                     >
-                      🔔
+                      <i className="bi bi-bell"></i>
                       {unreadCount > 0 && (
                         <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                           {unreadCount}
@@ -263,7 +263,7 @@ const Navbar = ({ onSearch }) => {
                               className="btn btn-sm btn-outline-secondary"
                               onClick={() => setNotifOpen(false)}
                             >
-                              ✕
+                              <i className="bi bi-x-lg"></i>
                             </button>
                           </div>
                         </div>
@@ -324,7 +324,7 @@ const Navbar = ({ onSearch }) => {
                     style={{ borderRadius: "999px", width: 54, height: 44 }}
                     title="Basket"
                   >
-                    🧺
+                    <i className="bi bi-basket3"></i>
                     {basketCount > 0 && (
                       <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                         {basketCount}
@@ -346,7 +346,7 @@ const Navbar = ({ onSearch }) => {
                       if (next) loadNotifications();
                     }}
                   >
-                    🔔
+                    <i className="bi bi-bell"></i>
                     {unreadCount > 0 && (
                       <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                         {unreadCount}
@@ -363,7 +363,7 @@ const Navbar = ({ onSearch }) => {
                   aria-label="Menu"
                   title="Menu"
                 >
-                  ☰
+                  <i className="bi bi-list"></i>
                 </button>
               </div>
             </div>
@@ -437,7 +437,7 @@ const Navbar = ({ onSearch }) => {
                       className="btn btn-sm btn-outline-secondary"
                       onClick={() => setNotifOpen(false)}
                     >
-                      ✕
+                      <i className="bi bi-x-lg"></i>
                     </button>
                   </div>
                 </div>
