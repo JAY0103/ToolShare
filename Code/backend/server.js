@@ -58,7 +58,7 @@ Thank you for using ToolShare.`,
     
     html: `
       <p>Hello,</p>
-      <p>Your ToolShare booking for <strong>TEST</strong> has been marked as <b>returned</b>.</p>
+      <p>Your ToolShare booking for <strong>${itemName}</strong> has been marked as <b>returned</b>.</p>
       <p>Thank you for using ToolShare.</p>
     `
   });
