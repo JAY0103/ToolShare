@@ -159,7 +159,7 @@ const Navbar = ({ onSearch }) => {
                 </button>
 
                 <button onClick={() => go("/items")} className={navBtnClass("/items")} style={{ borderRadius: "999px" }}>
-                  Browse Tools
+                  {isStaff ? "Manage Tools" : "Browse Tools"}
                 </button>
 
                 {isStudent && (
@@ -379,7 +379,7 @@ const Navbar = ({ onSearch }) => {
                   </button>
 
                   <button onClick={() => go("/items")} className="btn btn-outline-success fw-bold">
-                    Browse Tools
+                    {isStaff ? "Manage Tools" : "Browse Tools"}
                   </button>
 
                   {isStudent && (
