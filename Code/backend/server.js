@@ -155,28 +155,41 @@ const isStaff = (req) => ["faculty", "admin"].includes(roleLower(req));
 
 // -------------------- Upload Security --------------------
 const uploadsDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
+// Allowed MIME types for all image uploads
 const allowedMime = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
-    const safe = crypto.randomBytes(12).toString("hex");
-    cb(null, `${Date.now()}-${safe}${ext}`);
-  },
-});
+function createImageUploader(dir) {
+  // Ensure directory exists
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-  fileFilter: (req, file, cb) => {
-    if (!allowedMime.has(file.mimetype))
-      return cb(new Error("Only JPEG/PNG/WebP images are allowed"));
-    cb(null, true);
-  },
-});
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, dir),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+      const safe = crypto.randomBytes(12).toString("hex");
+      cb(null, `${Date.now()}-${safe}${ext}`);
+    },
+  });
+
+  return multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, cb) => {
+      if (!allowedMime.has(file.mimetype))
+        return cb(new Error("Only JPEG/PNG/WebP images are allowed"));
+      cb(null, true);
+    },
+  });
+}
+
+// General uploads (uploads/)
+const upload = createImageUploader(uploadsDir);
+
+// Condition images (uploads/condition-images/)
+const conditionUploadsDir = path.join(uploadsDir, "condition-images");
+const uploadConditionImage = createImageUploader(conditionUploadsDir);
 
 // -------------------- Notifications Helper --------------------
 const createNotification = async (user_id, title, message, type = "info") => {
@@ -545,22 +558,23 @@ app.get("/api/items/availability", authenticateToken, async (req, res) => {
   }
 });
 
-// EDIT ITEM (OWNER OR ADMIN)
 app.put("/api/edit-item", authenticateToken, async (req, res) => {
-  const { item_id, name, description, category_id } = req.body;
+  const { item_id, name, description, category_id, owner_ids } = req.body;
   if (!item_id || !name) return res.status(400).json({ error: "Item ID and name are required." });
 
   try {
+    // Check permissions: admin can edit anything, users can edit their own items
     if (!isAdmin(req)) {
-      const rows = await query(`SELECT item_id FROM items WHERE item_id = ? AND owner_id = ? LIMIT 1`, [
-        item_id,
-        req.user.userId,
-      ]);
+      const rows = await query(
+        `SELECT item_id FROM items WHERE item_id = ? AND owner_id = ? LIMIT 1`,
+        [item_id, req.user.userId]
+      );
       if (!rows[0]) return res.status(403).json({ error: "Not allowed" });
     }
 
     const catId = category_id ? Number(category_id) : null;
 
+    // Update item details
     await query(
       `UPDATE items
        SET name = ?, description = ?, category_id = ?
@@ -568,12 +582,30 @@ app.put("/api/edit-item", authenticateToken, async (req, res) => {
       [name, description || null, catId || null, item_id]
     );
 
+    // Sync item_owners if owner_ids is provided
+    if (Array.isArray(owner_ids)) {
+      // Delete existing owners not in the new list
+      await query(
+        `DELETE FROM item_owners WHERE item_id = ? AND user_id NOT IN (?)`,
+        [item_id, owner_ids.length ? owner_ids : [0]] // [0] to avoid SQL syntax error on empty array
+      );
+
+      // Insert new owners (ignore duplicates)
+      for (const userId of owner_ids) {
+        await query(
+          `INSERT IGNORE INTO item_owners (item_id, user_id) VALUES (?, ?)`,
+          [item_id, userId]
+        );
+      }
+    }
+
     res.json({ message: "Item updated successfully" });
   } catch (err) {
     console.error("edit-item error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 // -------------------- BORROW / BOOKINGS --------------------
 app.post("/api/book-item", authenticateToken, async (req, res) => {
@@ -763,6 +795,117 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+// -------------------- CONDITION IMAGES ROUTES --------------------
+
+// Upload a new condition image for a borrow request
+app.post(
+  "/api/borrowrequest/:id/condition-image",
+  authenticateToken,
+  uploadConditionImage.single("image"),
+  async (req, res) => {
+    const borrow_request_id = Number(req.params.id);
+    const { image_type } = req.body;
+
+    if (!borrow_request_id || !["Before", "After"].includes(image_type)) {
+      return res.status(400).json({ error: "Invalid borrow request ID or image type" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No image uploaded" });
+    }
+
+    try {
+      const image_url = `/uploads/condition-images/${req.file.filename}`;
+
+      await query(
+        `INSERT INTO conditionimages (borrow_request_id, image_url, image_type)
+         VALUES (?, ?, ?)`,
+        [borrow_request_id, image_url, image_type]
+      );
+
+      res.json({ message: "Condition image uploaded successfully", image_url });
+    } catch (err) {
+      console.error("condition-image upload error:", err);
+      res.status(500).json({ error: "Server error" });
+    }
+  }
+);
+
+//Get all condition images for a borrow request
+app.get("/api/borrowrequest/:id/condition-images", authenticateToken, async (req, res) => {
+  const borrow_request_id = Number(req.params.id);
+  if (!borrow_request_id) return res.status(400).json({ error: "Invalid borrow request ID" });
+
+  try {
+    const images = await query(
+      `SELECT image_id, image_url, image_type, timestamp
+       FROM conditionimages
+       WHERE borrow_request_id = ?
+       ORDER BY timestamp ASC`,
+      [borrow_request_id]
+    );
+
+    res.json({ images });
+  } catch (err) {
+    console.error("get condition images error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
+// -------------------- Condition Images --------------------
+// GET all condition images for an item
+app.get("/api/condition-images/:item_id", authenticateToken, async (req, res) => {
+  const item_id = Number(req.params.item_id);
+  if (!item_id) return res.status(400).json({ error: "Invalid item_id" });
+
+  try {
+    const images = await query(
+      `SELECT id, filename, created_at
+       FROM conditionimages
+       WHERE item_id = ?
+       ORDER BY created_at ASC`,
+      [item_id]
+    );
+
+    res.json({ images });
+  } catch (err) {
+    console.error("get condition images error:", err);
+    res.status(500).json({ error: "Failed to fetch condition images" });
+  }
+});
+
+// POST a new condition image for an item
+app.post(
+  "/api/condition-images/:item_id",
+  authenticateToken,
+  uploadConditionImage.single("image"),
+  async (req, res) => {
+    const item_id = Number(req.params.item_id);
+    if (!item_id) return res.status(400).json({ error: "Invalid item_id" });
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    try {
+      const filename = req.file.filename;
+
+      const result = await query(
+        `INSERT INTO conditionimages (item_id, filename, created_at)
+         VALUES (?, ?, NOW())`,
+        [item_id, filename]
+      );
+
+      res.json({
+        ok: true,
+        image: { id: result.insertId, item_id, filename, created_at: new Date() },
+      });
+    } catch (err) {
+      console.error("upload condition image error:", err);
+      res.status(500).json({ error: "Failed to upload condition image" });
+    }
+  }
+);
+//Request-cancel
 
 app.put("/api/request-cancel", authenticateToken, async (req, res) => {
   const { request_id } = req.body;
@@ -1343,7 +1486,8 @@ app.put("/api/request-return", authenticateToken, async (req, res) => {
   }
 });
 
-// OVERDUE LIST
+
+//OVERDUE LIST
 app.get("/api/overdue-requests", authenticateToken, async (req, res) => {
   try {
     await autoMarkOverdue();

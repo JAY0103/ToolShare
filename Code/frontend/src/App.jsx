@@ -14,6 +14,7 @@ import EditItem from "./pages/EditItem";
 import Items from "./pages/Items";
 import Cart from "./pages/Cart";
 import OwnerBookingHistory from "./pages/OwnerBookingHistory";
+import EditConditionImages from "./pages/EditConditionImages";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -55,7 +56,8 @@ function App() {
           <Route path="/items" element={user ? <Items searchTerm={searchTerm} /> : <Navigate to="/login" />} />
           <Route path="/cart" element={user ? <Cart /> : <Navigate to="/login" />} />
           <Route path="/owner-booking-history"element={isFacultyOrAdmin ? <OwnerBookingHistory /> : <Navigate to="/home" />} />
-        </Routes>
+	  <Route path="/edit-condition-images" element={isFacultyOrAdmin ? <EditConditionImages /> : <Navigate to="/home" />} />
+	  </Routes>
       </div>
     </Router>
   );

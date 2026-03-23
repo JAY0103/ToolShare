@@ -9,7 +9,7 @@ const EditConditionImages = () => {
 
   const [loading, setLoading] = useState(true);
   const [images, setImages] = useState([]);
-  const [file, setFile] = useState(null);
+  const [formData, setFormData] = useState({ conditionImage: null });
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,21 +38,29 @@ const EditConditionImages = () => {
     fetchImages();
   }, [itemId, navigate]);
 
-  const handleFileChange = (e) => setFile(e.target.files[0]);
+  const handleChange = (e) => {
+    const { name, files } = e.target;
+    if (files && files.length > 0) {
+      setFormData((prev) => ({ ...prev, [name]: files[0] }));
+    }
+  };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!formData.conditionImage) {
+      setError("Please select an image first.");
+      return;
+    }
+
     setUploading(true);
     setError("");
 
-    const formData = new FormData();
-    formData.append("conditionImage", file);
+    const data = new FormData();
+    data.append("conditionImage", formData.conditionImage);
 
     try {
-      const res = await itemsService.uploadConditionImage(itemId, formData);
-      // Append new image to state
+      const res = await itemsService.uploadConditionImage(itemId, data);
       setImages((prev) => [...prev, res.data.filename]);
-      setFile(null);
+      setFormData({ conditionImage: null });
     } catch (err) {
       console.error(err);
       setError("Upload failed. Must be JPEG, PNG, or WebP under 5MB.");
@@ -67,15 +75,13 @@ const EditConditionImages = () => {
     return `${API_BASE}${image}`;
   };
 
-  if (loading) {
-    return <div className="container p-4">Loading...</div>;
-  }
+  if (loading) return <div className="container p-4">Loading...</div>;
 
   return (
     <div className="container-fluid px-4 py-4">
       <h2 className="fw-bold mb-4">Edit Condition Images</h2>
 
-      {/* Display current images */}
+      {/* Current images */}
       <div className="row g-4 mb-4">
         {images.length === 0 && (
           <div className="col-12">
@@ -100,10 +106,9 @@ const EditConditionImages = () => {
                   src={getImageSrc(img)}
                   alt={`Condition ${idx + 1}`}
                   style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "cover" }}
-                  onError={(e) => {
-                    e.currentTarget.src =
-                      "https://via.placeholder.com/150?text=Image+Not+Found";
-                  }}
+                  onError={(e) =>
+                    (e.currentTarget.src = "https://via.placeholder.com/150?text=Image+Not+Found")
+                  }
                 />
               </div>
             </div>
@@ -111,18 +116,26 @@ const EditConditionImages = () => {
         ))}
       </div>
 
-      {/* Upload new image */}
-      <div className="card shadow p-4">
+      {/* Upload */}
+      <div className="card shadow p-4" style={{ maxWidth: "400px" }}>
         <h5 className="fw-bold mb-3">Upload New Condition Image</h5>
 
         {error && <div className="alert alert-danger">{error}</div>}
 
-        <div className="d-flex align-items-center gap-2">
-          <input type="file" accept="image/*" onChange={handleFileChange} />
+        <div className="mb-3">
+          <input
+            type="file"
+            name="conditionImage"
+            accept="image/*"
+            onChange={handleChange}
+          />
+        </div>
+
+        <div className="d-flex gap-2">
           <button
             className="btn btn-success fw-bold"
             onClick={handleUpload}
-            disabled={uploading || !file}
+            disabled={uploading || !formData.conditionImage}
           >
             {uploading ? "Uploading..." : "Upload"}
           </button>
@@ -133,6 +146,7 @@ const EditConditionImages = () => {
             Cancel
           </button>
         </div>
+
         <div className="mt-2 text-muted small">
           Allowed: JPEG, PNG, WebP. Max size: 5MB.
         </div>

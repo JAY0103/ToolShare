@@ -107,6 +107,26 @@ export const itemsService = {
     apiRequest(`/api/items/${id}`, {
       method: "DELETE",
     }),
+
+
+// -------------------- Condition Images --------------------
+  getConditionImages: async (item_id) => {
+    const d = await apiRequest(`/api/condition-images/${item_id}`);
+    return d.images || [];
+  },
+
+  uploadConditionImage: async (item_id, file) => {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const d = await apiRequest(`/api/condition-images/${item_id}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    return d.image || null;
+  },
+
 };
 
 // BOOKINGS SERVICE
@@ -237,3 +257,5 @@ export const adminService = {
 
   getReportsSummary: () => apiRequest("/api/admin/reports/summary"),
 };
+
+
