@@ -1,0 +1,144 @@
+import React, { useEffect, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { itemsService, API_BASE } from "../services/api";
+
+const EditConditionImages = () => {
+  const [searchParams] = useSearchParams();
+  const itemId = searchParams.get("item_id");
+  const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(true);
+  const [images, setImages] = useState([]);
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  // Fetch current condition images
+  useEffect(() => {
+    if (!itemId) {
+      alert("Invalid item");
+      navigate("/home");
+      return;
+    }
+
+    const fetchImages = async () => {
+      try {
+        setLoading(true);
+        const res = await itemsService.getConditionImages(itemId);
+        setImages(res.data?.images || []);
+      } catch (err) {
+        console.error(err);
+        alert("Failed to load condition images");
+        navigate("/home");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchImages();
+  }, [itemId, navigate]);
+
+  const handleFileChange = (e) => setFile(e.target.files[0]);
+
+  const handleUpload = async () => {
+    if (!file) return;
+    setUploading(true);
+    setError("");
+
+    const formData = new FormData();
+    formData.append("conditionImage", file);
+
+    try {
+      const res = await itemsService.uploadConditionImage(itemId, formData);
+      // Append new image to state
+      setImages((prev) => [...prev, res.data.filename]);
+      setFile(null);
+    } catch (err) {
+      console.error(err);
+      setError("Upload failed. Must be JPEG, PNG, or WebP under 5MB.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const getImageSrc = (image) => {
+    if (!image) return "https://via.placeholder.com/150?text=No+Image";
+    if (image.startsWith("http")) return image;
+    return `${API_BASE}${image}`;
+  };
+
+  if (loading) {
+    return <div className="container p-4">Loading...</div>;
+  }
+
+  return (
+    <div className="container-fluid px-4 py-4">
+      <h2 className="fw-bold mb-4">Edit Condition Images</h2>
+
+      {/* Display current images */}
+      <div className="row g-4 mb-4">
+        {images.length === 0 && (
+          <div className="col-12">
+            <div className="alert alert-info">No condition images yet.</div>
+          </div>
+        )}
+
+        {images.map((img, idx) => (
+          <div className="col-md-3" key={idx}>
+            <div className="card shadow">
+              <div
+                style={{
+                  height: "180px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  background: "#f8f9fa",
+                }}
+              >
+                <img
+                  src={getImageSrc(img)}
+                  alt={`Condition ${idx + 1}`}
+                  style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "cover" }}
+                  onError={(e) => {
+                    e.currentTarget.src =
+                      "https://via.placeholder.com/150?text=Image+Not+Found";
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Upload new image */}
+      <div className="card shadow p-4">
+        <h5 className="fw-bold mb-3">Upload New Condition Image</h5>
+
+        {error && <div className="alert alert-danger">{error}</div>}
+
+        <div className="d-flex align-items-center gap-2">
+          <input type="file" accept="image/*" onChange={handleFileChange} />
+          <button
+            className="btn btn-success fw-bold"
+            onClick={handleUpload}
+            disabled={uploading || !file}
+          >
+            {uploading ? "Uploading..." : "Upload"}
+          </button>
+          <button
+            className="btn btn-secondary fw-bold"
+            onClick={() => navigate("/home")}
+          >
+            Cancel
+          </button>
+        </div>
+        <div className="mt-2 text-muted small">
+          Allowed: JPEG, PNG, WebP. Max size: 5MB.
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default EditConditionImages;
