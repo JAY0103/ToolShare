@@ -5,7 +5,7 @@ import { itemsService, bookingsService, adminService, API_BASE } from "../servic
 
 const CART_KEY = "cart";
 
-const Home = ({ searchTerm = "" }) => {
+const Home = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "null");
 
@@ -409,13 +409,7 @@ const Home = ({ searchTerm = "" }) => {
     return top.length ? top : [...allItems].slice(0, 6);
   }, [allItems, myRequests, isStaff]);
 
-  const displayedRecommended = useMemo(() => {
-    if (!searchTerm) return recommendedItems;
-    const term = searchTerm.toLowerCase();
-    return recommendedItems.filter(
-      (i) => i.name?.toLowerCase().includes(term) || i.description?.toLowerCase().includes(term)
-    );
-  }, [recommendedItems, searchTerm]);
+  const displayedRecommended = recommendedItems;
 
   // Admin summary map
   const statusMap = useMemo(() => {

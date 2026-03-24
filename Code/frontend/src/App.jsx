@@ -19,7 +19,7 @@ import EditConditionImages from "./pages/EditConditionImages";
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  //const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -41,19 +41,19 @@ function App() {
 
   return (
     <Router>
-      {user && <Navbar onSearch={setSearchTerm} />}
+      {user && <Navbar />}
       <div>
         <Routes>
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/home" />} />
           <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/home" />} />
-          <Route path="/home" element={user ? <Home searchTerm={searchTerm} /> : <Navigate to="/login" />} />
+          <Route path="/home" element={user ? <Home /> : <Navigate to="/login" />} />
           <Route path="/" element={<Navigate to="/home" />} />
           <Route path="/add-item" element={isFacultyOrAdmin ? <AddItem /> : <Navigate to="/home" />} />
           <Route path="/book-item" element={user ? <BookItem /> : <Navigate to="/login" />} />
           <Route path="/my-bookings" element={user ? <MyBookings /> : <Navigate to="/login" />} />
           <Route path="/requested-bookings"element={isFacultyOrAdmin ? <RequestedBookings /> : <Navigate to="/home" />} />
           <Route path="/edit-item" element={isFacultyOrAdmin ? <EditItem /> : <Navigate to="/home" />} />
-          <Route path="/items" element={user ? <Items searchTerm={searchTerm} /> : <Navigate to="/login" />} />
+          <Route path="/items" element={user ? <Items /> : <Navigate to="/login" />} />
           <Route path="/cart" element={user ? <Cart /> : <Navigate to="/login" />} />
           <Route path="/owner-booking-history"element={isFacultyOrAdmin ? <OwnerBookingHistory /> : <Navigate to="/home" />} />
 	  <Route path="/edit-condition-images" element={isFacultyOrAdmin ? <EditConditionImages /> : <Navigate to="/home" />} />
