@@ -237,10 +237,10 @@ const Items = ({ searchTerm = "" }) => {
       ) : (
         <div className="items-grid">
           {filteredItems.map((item) => {
-            const isOwner =
-              (isFaculty || isAdmin) && Number(item.owner_id) === Number(userId);
-
-            return (
+	
+		  const isOwner = isAdmin || ((isFaculty) && Number(item.owner_id) === Number(userId));
+           
+		  return (
               <div key={item.item_id} className="item-card shadow-sm">
                 <div className="img-frame">
                   <img
