@@ -7,12 +7,12 @@ const AddItem = () => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    serial_number: "",
     category_id: "",
     quantity: 1,
     image: null,
   });
 
+  const [serialNumbers, setSerialNumbers] = useState([""]);
   const [categories, setCategories] = useState([]);
   const [loadingCats, setLoadingCats] = useState(true);
 
@@ -30,6 +30,7 @@ const AddItem = () => {
         setLoadingCats(false);
       }
     };
+
     loadCategories();
   }, []);
 
@@ -37,19 +38,41 @@ const AddItem = () => {
     const { name, value, files } = e.target;
 
     if (files) {
-      setFormData((p) => ({ ...p, [name]: files[0] }));
+      setFormData((prev) => ({ ...prev, [name]: files[0] }));
       return;
     }
 
     if (name === "quantity") {
-      let qty = Number(value);
-      if (Number.isNaN(qty) || qty < 1) qty = 1;
+      let qty = parseInt(value, 10);
 
-      setFormData((p) => ({ ...p, quantity: qty }));
+      if (isNaN(qty) || qty < 1) qty = 1;
+
+      setFormData((prev) => ({ ...prev, quantity: qty }));
+
+      setSerialNumbers((prev) => {
+        const next = [...prev];
+
+        if (qty > next.length) {
+          while (next.length < qty) next.push("");
+        } else if (qty < next.length) {
+          next.length = qty;
+        }
+
+        return next;
+      });
+
       return;
     }
 
-    setFormData((p) => ({ ...p, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSerialChange = (index, value) => {
+    setSerialNumbers((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -62,20 +85,16 @@ const AddItem = () => {
       return;
     }
 
-    const serialInput = formData.serial_number.trim();
+    const cleanedSerials = serialNumbers.map((s) => s.trim());
 
-    if (!serialInput) {
-      alert("Please enter serial number(s).");
+    if (cleanedSerials.some((s) => !s)) {
+      alert("Please fill in all serial number fields.");
       return;
     }
 
-    const serialNumbers = serialInput
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-
-    if (serialNumbers.length !== quantity) {
-      alert(`Please enter exactly ${quantity} serial numbers separated by commas.`);
+    const uniqueSerials = new Set(cleanedSerials);
+    if (uniqueSerials.size !== cleanedSerials.length) {
+      alert("Serial numbers must be unique.");
       return;
     }
 
@@ -83,7 +102,7 @@ const AddItem = () => {
     data.append("name", formData.name);
     data.append("description", formData.description);
     data.append("quantity", quantity);
-    data.append("serial_number", serialInput);
+    data.append("serial_number", cleanedSerials.join(","));
 
     if (formData.category_id) data.append("category_id", formData.category_id);
     if (formData.image) data.append("image", formData.image);
@@ -102,9 +121,8 @@ const AddItem = () => {
     <div className="container-fluid px-4 py-4">
       <h2 className="fw-bold mb-3">Add New Item</h2>
 
-      <div className="card shadow p-4" style={{ maxWidth: "650px" }}>
+      <div className="card shadow p-4" style={{ maxWidth: "700px" }}>
         <form onSubmit={handleSubmit}>
-          
           <div className="mb-3">
             <label className="form-label">Item Name *</label>
             <input
@@ -129,7 +147,6 @@ const AddItem = () => {
             />
           </div>
 
-          {/* Quantity */}
           <div className="mb-3">
             <label className="form-label">Quantity *</label>
             <input
@@ -141,36 +158,33 @@ const AddItem = () => {
               onChange={handleChange}
               required
             />
-          </div>
-
-          {/* Serial numbers */}
-          <div className="mb-3">
-            <label className="form-label">
-              {formData.quantity > 1 ? "Serial Numbers *" : "Serial Number *"}
-            </label>
-
-            <input
-              type="text"
-              name="serial_number"
-              className="form-control"
-              value={formData.serial_number}
-              onChange={handleChange}
-              required
-              placeholder={
-                formData.quantity > 1
-                  ? "Enter serial numbers separated by commas"
-                  : "Enter serial number"
-              }
-            />
-
             <small className="text-muted">
-              {formData.quantity > 1
-                ? `Enter ${formData.quantity} serial numbers separated by commas`
-                : "Enter one serial number"}
+              Enter how many tools of the same item you want to add.
             </small>
           </div>
 
-          {/* Category */}
+          <div className="mb-3">
+            <label className="form-label">
+              Serial Number{formData.quantity > 1 ? "s" : ""} *
+            </label>
+
+            {serialNumbers.map((serial, index) => (
+              <input
+                key={index}
+                type="text"
+                className="form-control mb-2"
+                placeholder={`Serial Number ${index + 1}`}
+                value={serial}
+                onChange={(e) => handleSerialChange(index, e.target.value)}
+                required
+              />
+            ))}
+
+            <small className="text-muted">
+              A separate serial number is required for each tool.
+            </small>
+          </div>
+
           <div className="mb-3">
             <label className="form-label">Category *</label>
             <select
@@ -184,7 +198,6 @@ const AddItem = () => {
               <option value="">
                 {loadingCats ? "Loading categories..." : "Select a category"}
               </option>
-
               {categories.map((c) => (
                 <option key={c.category_id} value={c.category_id}>
                   {c.name}
@@ -193,7 +206,6 @@ const AddItem = () => {
             </select>
           </div>
 
-          {/* Image */}
           <div className="mb-3">
             <label className="form-label">Upload Image *</label>
             <input
