@@ -1,11 +1,13 @@
 // src/pages/EditConditionImages.jsx
 import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { itemsService, API_BASE } from "../services/api";
+import { itemsService,bookingsService, API_BASE } from "../services/api";
 
 const EditConditionImages = () => {
   const [searchParams] = useSearchParams();
   const itemId = searchParams.get("item_id");
+  const requestId = searchParams.get("request_id");
+  const type = searchParams.get("type"); // "checkout" or "return"
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -64,6 +66,17 @@ const EditConditionImages = () => {
       const newImg = res.data.filename || res.data.image_url;
       setImages((prev) => [...prev, newImg]);
       setFormData({ image: null }); // reset file input
+
+      if (type === "checkout") {
+        await bookingsService.checkoutRequest(requestId);
+        alert("Checked out successfully!");
+      } else if (type === "return") {
+        await bookingsService.returnRequest(requestId);
+        alert("Returned successfully!");
+      }
+
+      navigate("/requested-bookings");
+
     } catch (err) {
       console.error(err);
       setError("Upload failed. Must be JPEG, PNG, or WebP under 5MB.");

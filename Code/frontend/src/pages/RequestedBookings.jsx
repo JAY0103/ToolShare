@@ -323,14 +323,18 @@ const RequestedBookings = () => {
                         )
                       ) : status === "approved" ? (
                         <button
-                          onClick={() => handleCheckout(req.request_id)}
+                          onClick={() =>
+                            window.location.href = `/edit-condition-images?item_id=${req.item_id}&request_id=${req.request_id}&type=checkout`
+                          }
                           className="btn btn-primary btn-sm flex-fill"
                         >
                           Check Out
                         </button>
                       ) : status === "checkedout" || status === "overdue" ? (
                         <button
-                          onClick={() => handleReturn(req.request_id)}
+                          onClick={() =>
+                            window.location.href = `/edit-condition-images?item_id=${req.item_id}&request_id=${req.request_id}&type=return`
+                          }
                           className={`btn btn-sm flex-fill ${
                             status === "overdue" ? "btn-danger" : "btn-warning"
                           }`}
