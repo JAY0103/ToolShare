@@ -554,8 +554,7 @@ const Home = () => {
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <div>
           <h2 className="fw-bold mb-1">
-            Welcome{user?.first_name ? `, ${user.first_name}` : ""}{" "}
-            <i className="bi bi-hand-thumbs-up"></i>
+            Welcome{user?.first_name ? `, ${user.first_name}` : ""}
           </h2>
 
           <span className={`badge ${isAdmin ? "bg-dark" : isStaff ? "bg-warning text-dark" : "bg-success"}`}>
@@ -1095,7 +1094,10 @@ const Home = () => {
               <div className="card p-3 shadow-sm h-100">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <div>
-                    <h5 className="fw-bold mb-0">Today’s Pickup List</h5>
+                    <h5 className="fw-bold mb-0">
+                      <i className="bi bi-box-seam me-2 text-primary"></i>
+                      Today’s Pickup List
+                    </h5>
                   </div>
                 </div>
 
@@ -1149,7 +1151,9 @@ const Home = () => {
               <div className="card p-3 shadow-sm h-100">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <div>
-                    <h5 className="fw-bold mb-0">Due Today</h5>
+                    <h5 className="fw-bold mb-0">
+                      <i className="bi bi-clock-history me-2 text-primary"></i>
+                      Due Today</h5>
                   </div>
                 </div>
 
