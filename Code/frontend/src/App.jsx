@@ -19,8 +19,7 @@ import EditConditionImages from "./pages/EditConditionImages";
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  //const [searchTerm, setSearchTerm] = useState("");
-
+  
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
@@ -56,7 +55,7 @@ function App() {
           <Route path="/items" element={user ? <Items /> : <Navigate to="/login" />} />
           <Route path="/cart" element={user ? <Cart /> : <Navigate to="/login" />} />
           <Route path="/owner-booking-history"element={isFacultyOrAdmin ? <OwnerBookingHistory /> : <Navigate to="/home" />} />
-	  <Route path="/edit-condition-images" element={isFacultyOrAdmin ? <EditConditionImages /> : <Navigate to="/home" />} />
+	        <Route path="/edit-condition-images" element={isFacultyOrAdmin ? <EditConditionImages /> : <Navigate to="/home" />} />
 	  </Routes>
       </div>
     </Router>
