@@ -1,7 +1,7 @@
 // src/pages/EditConditionImages.jsx
 import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { itemsService,bookingsService, API_BASE } from "../services/api";
+import { itemsService, bookingsService, API_BASE } from "../services/api";
 
 const EditConditionImages = () => {
   const [searchParams] = useSearchParams();
@@ -27,8 +27,8 @@ const EditConditionImages = () => {
     const fetchImages = async () => {
       try {
         setLoading(true);
-        const res = await itemsService.getConditionImages(itemId);
-        setImages(res.data?.images || []);
+        const res = await itemsService.uploadConditionImage(requestId, formData.image, type);
+		      	      setImages(res.data?.images || []);
       } catch (err) {
         console.error(err);
         alert("Failed to load condition images");
@@ -58,14 +58,16 @@ const EditConditionImages = () => {
     setError("");
 
     const data = new FormData();
-    data.append("image", formData.image); // backend expects 'image'
+    data.append("image", formData.image);
+    data.append("image_type", type === "checkout" ? "Before" : "After"); // ✅ FIX
 
     try {
-      const res = await itemsService.uploadConditionImage(itemId, data);
-      // Backend may return { filename: "path" } or { image_url: "path" }
+      // ✅ FIX: use requestId instead of itemId
+      const res = await itemsService.uploadConditionImage(requestId, data);
+
       const newImg = res.data.filename || res.data.image_url;
       setImages((prev) => [...prev, newImg]);
-      setFormData({ image: null }); // reset file input
+      setFormData({ image: null });
 
       if (type === "checkout") {
         await bookingsService.checkoutRequest(requestId);
@@ -145,7 +147,7 @@ const EditConditionImages = () => {
             name="image"
             accept="image/*"
             onChange={handleChange}
-            key={formData.image ? formData.image.name : ""} // force reset
+            key={formData.image ? formData.image.name : ""}
           />
         </div>
 
