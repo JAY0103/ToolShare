@@ -819,7 +819,7 @@ app.post(
       const image_url = `/uploads/condition-images/${req.file.filename}`;
 
       await query(
-        `INSERT INTO conditionimages (borrow_request_id, image_url, image_type)
+        `INSERT INTO conditionimages (borrow_request_id, filename, image_type)
          VALUES (?, ?, ?)`,
         [borrow_request_id, image_url, image_type]
       );
