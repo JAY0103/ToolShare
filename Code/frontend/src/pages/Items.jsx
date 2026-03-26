@@ -26,6 +26,9 @@ const Items = ({ searchTerm = "" }) => {
   const [availabilityEnd, setAvailabilityEnd] = useState("");
   const [availabilityMode, setAvailabilityMode] = useState(false);
 
+  // local search state
+  const [localSearch, setLocalSearch] = useState(searchTerm || "");
+
   const loadAllItems = async () => {
     try {
       setLoading(true);
@@ -54,20 +57,26 @@ const Items = ({ searchTerm = "" }) => {
   const filteredItems = useMemo(() => {
     let result = [...items];
 
-    // match Uncategorized too
+    // Category filter
     if (selectedCategory !== "All Tools") {
-      result = result.filter((i) => (i.category_name || "Uncategorized") === selectedCategory);
+      result = result.filter(
+        (i) => (i.category_name || "Uncategorized") === selectedCategory
+      );
     }
 
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
+    // Search filter
+    if (localSearch) {
+      const term = localSearch.toLowerCase();
       result = result.filter(
-        (i) => i.name?.toLowerCase().includes(term) || i.description?.toLowerCase().includes(term)
+        (i) =>
+          i.name?.toLowerCase().includes(term) ||
+          i.description?.toLowerCase().includes(term) ||
+          i.category_name?.toLowerCase().includes(term)
       );
     }
 
     return result;
-  }, [items, selectedCategory, searchTerm]);
+  }, [items, selectedCategory, localSearch]);
 
   const getImageSrc = (image_url) => {
     if (!image_url) return "https://via.placeholder.com/400x250?text=ToolShare";
@@ -89,7 +98,10 @@ const Items = ({ searchTerm = "" }) => {
 
     try {
       setLoading(true);
-      const list = await itemsService.getAvailableItems(availabilityStart, availabilityEnd);
+      const list = await itemsService.getAvailableItems(
+        availabilityStart,
+        availabilityEnd
+      );
       setItems(Array.isArray(list) ? list : []);
       setSelectedCategory("All Tools");
       setAvailabilityMode(true);
@@ -108,7 +120,7 @@ const Items = ({ searchTerm = "" }) => {
     await loadAllItems();
   };
 
-  // ---------------- BASKET HELPERS (still stored in "cart") ----------------
+  // ---------------- BASKET ----------------
   const getCart = () => {
     try {
       const raw = localStorage.getItem(CART_KEY);
@@ -126,7 +138,9 @@ const Items = ({ searchTerm = "" }) => {
 
   const addToCart = (item) => {
     const cart = getCart();
-    const exists = cart.some((c) => Number(c.item_id) === Number(item.item_id));
+    const exists = cart.some(
+      (c) => Number(c.item_id) === Number(item.item_id)
+    );
     if (exists) {
       alert("This tool is already in your basket.");
       return;
@@ -138,7 +152,6 @@ const Items = ({ searchTerm = "" }) => {
       description: item.description,
       image_url: item.image_url,
       owner_name: item.owner_name,
-      // per-item dates will be set in Cart.jsx
       requested_start: "",
       requested_end: "",
     });
@@ -163,10 +176,12 @@ const Items = ({ searchTerm = "" }) => {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="fw-bold mb-0">Browse Tools</h2>
 
-        {/* Student-only Basket button */}
         {!isStaff && (
-          <button className="btn btn-outline-success fw-bold" onClick={() => navigate("/cart")}>
-            <i className="bi bi-basket3"></i>  Go to Basket
+          <button
+            className="btn btn-outline-success fw-bold"
+            onClick={() => navigate("/cart")}
+          >
+            <i className="bi bi-basket3"></i> Go to Basket
           </button>
         )}
       </div>
@@ -174,7 +189,21 @@ const Items = ({ searchTerm = "" }) => {
       {/* Filters */}
       <div className="card p-3 mb-4 shadow-sm">
         <div className="row g-3 align-items-end">
-          <div className="col-md-3">
+
+          {/* SEARCH BAR */}
+          <div className="col-md-4">
+            <label className="form-label fw-bold">Search Tools</label>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search by name, description, category..."
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+            />
+          </div>
+
+          {/* Start */}
+          <div className="col-md-2">
             <label className="form-label fw-bold">Start</label>
             <input
               type="datetime-local"
@@ -184,7 +213,8 @@ const Items = ({ searchTerm = "" }) => {
             />
           </div>
 
-          <div className="col-md-3">
+          {/* End */}
+          <div className="col-md-2">
             <label className="form-label fw-bold">End</label>
             <input
               type="datetime-local"
@@ -194,7 +224,8 @@ const Items = ({ searchTerm = "" }) => {
             />
           </div>
 
-          <div className="col-md-3">
+          {/* Category */}
+          <div className="col-md-2">
             <label className="form-label fw-bold">Category</label>
             <select
               className="form-select"
@@ -209,11 +240,18 @@ const Items = ({ searchTerm = "" }) => {
             </select>
           </div>
 
-          <div className="col-md-3 d-flex gap-2">
-            <button className="btn btn-success flex-fill fw-bold" onClick={checkAvailability}>
-              Check Availability
+          {/* Buttons */}
+          <div className="col-md-2 d-flex gap-2">
+            <button
+              className="btn btn-success flex-fill fw-bold"
+              onClick={checkAvailability}
+            >
+              Check
             </button>
-            <button className="btn btn-outline-secondary flex-fill fw-bold" onClick={clearAvailability}>
+            <button
+              className="btn btn-outline-secondary flex-fill fw-bold"
+              onClick={clearAvailability}
+            >
               Clear
             </button>
           </div>
@@ -221,7 +259,7 @@ const Items = ({ searchTerm = "" }) => {
           {availabilityMode && (
             <div className="col-12">
               <div className="alert alert-success py-2 mb-0">
-                Showing tools available between <strong>{availabilityStart}</strong> and{" "}
+                Showing tools between <strong>{availabilityStart}</strong> and{" "}
                 <strong>{availabilityEnd}</strong>
               </div>
             </div>
@@ -233,51 +271,57 @@ const Items = ({ searchTerm = "" }) => {
       {loading ? (
         <div className="text-center py-5">Loading tools...</div>
       ) : filteredItems.length === 0 ? (
-        <div className="alert alert-info text-center">No tools found.</div>
+        <div className="alert alert-info text-center">
+          No tools found.
+        </div>
       ) : (
         <div className="items-grid">
           {filteredItems.map((item) => {
-	
-		  const isOwner = isAdmin || ((isFaculty) && Number(item.owner_id) === Number(userId));
-           
-		  return (
+            const isOwner =
+              isAdmin ||
+              (isFaculty && Number(item.owner_id) === Number(userId));
+
+            return (
               <div key={item.item_id} className="item-card shadow-sm">
                 <div className="img-frame">
                   <img
                     src={getImageSrc(item.image_url)}
                     alt={item.name}
                     onError={(e) => {
-                      e.currentTarget.src = "https://via.placeholder.com/400x250?text=Image+Not+Found";
+                      e.currentTarget.src =
+                        "https://via.placeholder.com/400x250?text=Image+Not+Found";
                     }}
                   />
                 </div>
 
                 <h5 className="fw-bold mt-2 mb-1">{item.name}</h5>
                 <p className="text-muted mb-2">
-                  {item.description?.substring(0, 90) || "No description"}
+                  {item.description?.substring(0, 90) ||
+                    "No description"}
                 </p>
 
-                <div className="text-muted small mb-2">Owner: {item.owner_name || "Unknown"}</div>
+                <div className="text-muted small mb-2">
+                  Owner: {item.owner_name || "Unknown"}
+                </div>
 
                 <div className="text-muted small mb-3">
                   Category: {item.category_name || "Uncategorized"}
                 </div>
 
-                {/* Student actions */}
                 {!isStaff ? (
-                  <div className="d-flex gap-2">
-                    <button
-                      className="btn btn-outline-success fw-bold flex-fill"
-                      onClick={() => addToCart(item)}
-                    >
-                      Add to Basket
-                    </button>
-                  </div>
+                  <button
+                    className="btn btn-outline-success fw-bold w-100"
+                    onClick={() => addToCart(item)}
+                  >
+                    Add to Basket
+                  </button>
                 ) : isOwner ? (
                   <div className="d-flex gap-2">
                     <button
                       className="btn btn-outline-primary fw-bold flex-fill"
-                      onClick={() => navigate(`/edit-item?item_id=${item.item_id}`)}
+                      onClick={() =>
+                        navigate(`/edit-item?item_id=${item.item_id}`)
+                      }
                     >
                       Edit
                     </button>
@@ -290,7 +334,9 @@ const Items = ({ searchTerm = "" }) => {
                     </button>
                   </div>
                 ) : (
-                  <div className="text-muted small">Staff view (not your tool)</div>
+                  <div className="text-muted small">
+                    Staff view (not your tool)
+                  </div>
                 )}
               </div>
             );
