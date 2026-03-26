@@ -110,23 +110,46 @@ export const itemsService = {
 
 
 // -------------------- Condition Images --------------------
-  getConditionImages: async (item_id) => {
-    const d = await apiRequest(`/api/condition-images/${item_id}`);
+// Fetch all condition images for a borrow request
+  getBorrowRequestConditionImages: async (requestId) => {
+    if (!requestId) throw new Error("Missing borrow request ID");
+    const d = await apiRequest(`/api/borrowrequest/${requestId}/condition-images`);
     return d.images || [];
   },
 
-  uploadConditionImage: async (item_id, file) => {
-    const formData = new FormData();
-    formData.append("image", file);
+  // Upload a condition image for a borrow request
+  uploadConditionImage: async (requestId, formData) => {
+    if (!requestId) throw new Error("Missing borrow request ID");
+    if (!formData) throw new Error("Missing form data");
 
-    const d = await apiRequest(`/api/condition-images/${item_id}`, {
+    const d = await apiRequest(
+      `/api/borrowrequest/${requestId}/condition-image`,
+      { method: "POST", body: formData }
+    );
+
+    // Returns server response: { image_url: ..., message: ... }
+    return d;
+  },
+
+  // Optional: fetch images by item_id (unused in your current frontend)
+  getConditionImages: async (itemId) => {
+    if (!itemId) throw new Error("Missing item ID");
+    const d = await apiRequest(`/api/condition-images/${itemId}`);
+    return d.images || [];
+  },
+
+  // Optional: upload images by item_id (unused in your current frontend)
+  uploadItemConditionImage: async (itemId, formData) => {
+    if (!itemId) throw new Error("Missing item ID");
+    if (!formData) throw new Error("Missing form data");
+
+    const d = await apiRequest(`/api/condition-images/${itemId}`, {
       method: "POST",
       body: formData,
     });
 
-    return d.image || null;
+    return d;
   },
-
 };
 
 // BOOKINGS SERVICE

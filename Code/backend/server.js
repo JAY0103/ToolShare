@@ -804,27 +804,39 @@ app.post(
   authenticateToken,
   uploadConditionImage.single("image"),
   async (req, res) => {
-    const borrow_request_id = Number(req.params.id);
-    const { image_type } = req.body;
-
-    if (!borrow_request_id || !["Before", "After"].includes(image_type)) {
-      return res.status(400).json({ error: "Invalid borrow request ID or image type" });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({ error: "No image uploaded" });
-    }
-
     try {
-      const image_url = `/uploads/condition-images/${req.file.filename}`;
+      const borrowRequestId = Number(req.params.id); // <-- define it here
+      const { image_type } = req.body;
 
-      await query(
-        `INSERT INTO conditionimages (borrow_request_id, filename, image_type)
-         VALUES (?, ?, ?)`,
-        [borrow_request_id, image_url, image_type]
+      if (!borrowRequestId || !["Before", "After"].includes(image_type)) {
+        return res.status(400).json({ error: "Invalid borrow request ID or image type" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No image uploaded" });
+      }
+
+      // fetch item_id from borrowrequests
+      const [borrowRequest] = await query(
+        "SELECT item_id FROM borrowrequests WHERE request_id = ?",
+        [borrowRequestId]
       );
 
-      res.json({ message: "Condition image uploaded successfully", image_url });
+      if (!borrowRequest) {
+        return res.status(400).json({ error: "Borrow request not found" });
+      }
+
+      const itemId = borrowRequest.item_id;
+      const filename = req.file.filename;
+
+      // insert into conditionimages
+      await query(
+        `INSERT INTO conditionimages (item_id, borrow_request_id, filename, image_type)
+         VALUES (?, ?, ?, ?)`,
+        [itemId, borrowRequestId, filename, image_type]
+      );
+
+      res.json({ message: "Condition image uploaded successfully", filename });
     } catch (err) {
       console.error("condition-image upload error:", err);
       res.status(500).json({ error: "Server error" });
@@ -839,7 +851,7 @@ app.get("/api/borrowrequest/:id/condition-images", authenticateToken, async (req
 
   try {
     const images = await query(
-      `SELECT image_id, image_url, image_type, timestamp
+      `SELECT id, image_url, image_type, timestamp
        FROM conditionimages
        WHERE borrow_request_id = ?
        ORDER BY timestamp ASC`,
