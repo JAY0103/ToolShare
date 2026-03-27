@@ -259,6 +259,11 @@ const Cart = () => {
                         <i className="bi bi-x-lg"></i>
                       </button>
                     </div>
+
+			<div className="mt-3 p-2 bg-light border rounded small text-muted">
+        			I acknowledge that by borrowing this item, I am responsible for paying for its repair or replacement if it becomes damaged or lost due to negligence or improper use.
+        		</div>
+
                   </div>
                 </div>
               </div>
