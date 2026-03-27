@@ -570,28 +570,36 @@ const Home = () => {
           {/* ================== ADMIN: KPI CARDS ================== */}
           <div className="row g-3 mb-4">
             <div className="col-12 col-md-4 col-lg-3">
-              <div className="card p-3 shadow-sm h-100">
+              <div className="card p-3 shadow-sm h-100"
+                   style={{ cursor: "pointer" }}
+                   onClick={() => navigate("/items")}>
                 <div className="text-muted fw-bold">Total Tools</div>
                 <div className="fs-3 fw-bold">{allItems.length}</div>
               </div>
             </div>
 
             <div className="col-6 col-md-4 col-lg-3">
-              <div className="card p-3 shadow-sm h-100">
+              <div className="card p-3 shadow-sm h-100"
+                   style={{ cursor: "pointer" }}
+                   onClick={() => navigate("/admin/requests?filter=today")}>
                 <div className="text-muted fw-bold">Requests Today</div>
                 <div className="fs-3 fw-bold">{adminRequestsToday.length}</div>
               </div>
             </div>
 
             <div className="col-6 col-md-4 col-lg-3">
-              <div className="card p-3 shadow-sm h-100">
+              <div className="card p-3 shadow-sm h-100"
+                   style={{ cursor: "pointer" }}
+                   onClick={() => navigate("/admin/requests?status=pending")}>
                 <div className="text-muted fw-bold">Pending Approvals</div>
                 <div className="fs-3 fw-bold">{statusMap.get("Pending") || statusMap.get("pending") || 0}</div>
               </div>
             </div>
 
             <div className="col-6 col-md-4 col-lg-3">
-              <div className="card p-3 shadow-sm h-100">
+              <div className="card p-3 shadow-sm h-100"
+                   style={{ cursor: "pointer" }}
+                   onClick={() => navigate("/admin/requests?status=checkedout")}>
                 <div className="text-muted fw-bold">Active Checkouts</div>
                 <div className="fs-3 fw-bold">
                   {statusMap.get("CheckedOut") || statusMap.get("Checked Out") || statusMap.get("checkedout") || 0}
@@ -600,7 +608,9 @@ const Home = () => {
             </div>
 
             <div className="col-6 col-md-4 col-lg-3">
-              <div className="card p-3 shadow-sm h-100">
+              <div className="card p-3 shadow-sm h-100"
+                   style={{ cursor: "pointer" }}
+                   onClick={() => navigate("/admin/requests?status=overdue")}>
                 <div className="text-muted fw-bold">Overdue</div>
                 <div className="fs-3 fw-bold">{statusMap.get("Overdue") || statusMap.get("overdue") || 0}</div>
               </div>
@@ -614,7 +624,9 @@ const Home = () => {
               <div className="card p-3 shadow-sm h-100">
                 <div className="d-flex justify-content-between align-items-center mb-2">
                   <div>
-                    <h5 className="fw-bold mb-0">Pending Approvals</h5>
+                    <h5 className="fw-bold mb-0">
+                      <i className="bi bi-hourglass-split me-2"></i>
+                      Pending Approvals</h5>
                     <div className="text-muted small">Only the newest pending requests</div>
                   </div>
                 </div>
@@ -1095,7 +1107,7 @@ const Home = () => {
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <div>
                     <h5 className="fw-bold mb-0">
-                      <i className="bi bi-box-seam me-2 text-primary"></i>
+                      <i className="bi bi-box-seam me-2"></i>
                       Today’s Pickup List
                     </h5>
                   </div>
@@ -1152,7 +1164,7 @@ const Home = () => {
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <div>
                     <h5 className="fw-bold mb-0">
-                      <i className="bi bi-clock-history me-2 text-primary"></i>
+                      <i className="bi bi-arrow-return-left me-2"></i>
                       Due Today</h5>
                   </div>
                 </div>
