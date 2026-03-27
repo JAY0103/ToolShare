@@ -75,47 +75,59 @@ const AddItem = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+//HaandleSubmit route (will submit multiple items as well)
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    const quantity = Number(formData.quantity) || 1;
+  const quantity = Number(formData.quantity) || 1;
 
-    if (quantity < 1) {
-      alert("Quantity must be at least 1.");
-      return;
-    }
+  if (quantity < 1) {
+    alert("Quantity must be at least 1.");
+    return;
+  }
 
-    const cleanedSerials = serialNumbers.map((s) => s.trim());
+  const cleanedSerials = serialNumbers.map((s) => s.trim());
 
-    if (cleanedSerials.some((s) => !s)) {
-      alert("Please fill in all serial number fields.");
-      return;
-    }
+  if (cleanedSerials.some((s) => !s)) {
+    alert("Please fill in all serial number fields.");
+    return;
+  }
 
-    const uniqueSerials = new Set(cleanedSerials);
-    if (uniqueSerials.size !== cleanedSerials.length) {
-      alert("Serial numbers must be unique.");
-      return;
-    }
+  const uniqueSerials = new Set(cleanedSerials);
+  if (uniqueSerials.size !== cleanedSerials.length) {
+    alert("Serial numbers must be unique.");
+    return;
+  }
 
-    const data = new FormData();
-    data.append("name", formData.name);
-    data.append("description", formData.description);
-    data.append("quantity", quantity);
-    data.append("serial_number", cleanedSerials.join(","));
+  try {
+    // 🔹 NEW: send one request per serial number
+    for (const serial of cleanedSerials) {
+      const data = new FormData();
 
-    if (formData.category_id) data.append("category_id", formData.category_id);
-    if (formData.image) data.append("image", formData.image);
+      data.append("name", formData.name);
+      data.append("description", formData.description);
+      data.append("quantity", 1); // always 1 per request
+      data.append("serial_number", serial);
 
-    try {
+      if (formData.category_id) {
+        data.append("category_id", formData.category_id);
+      }
+
+      if (formData.image) {
+        data.append("image", formData.image);
+      }
+
       await itemsService.addItem(data);
-      alert("Item(s) added successfully!");
-      navigate("/home");
-    } catch (err) {
-      console.error("Add item error:", err.message);
-      alert(err.message || "Failed to add item(s)");
     }
-  };
+
+    alert("Items added successfully!");
+    navigate("/home");
+
+  } catch (err) {
+    console.error("Add item error:", err.message);
+    alert(err.message || "Failed to add item(s)");
+  }
+};
 
   return (
     <div className="container-fluid px-4 py-4">
