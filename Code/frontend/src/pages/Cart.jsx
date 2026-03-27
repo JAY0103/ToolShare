@@ -31,7 +31,7 @@ const Cart = () => {
   const saveCart = (next) => {
     setCart(next);
     localStorage.setItem(CART_KEY, JSON.stringify(next));
-    window.dispatchEvent(new Event("cartUpdated")); // keep event name to avoid breaking Navbar
+    window.dispatchEvent(new Event("cartUpdated"));
   };
 
   useEffect(() => {
@@ -40,7 +40,6 @@ const Cart = () => {
       return;
     }
 
-    // Faculty/Admin shouldn’t use basket (they manage tools)
     if (isFaculty || isAdmin) {
       navigate("/items");
       return;
@@ -75,6 +74,14 @@ const Cart = () => {
     saveCart(next);
   };
 
+  // ✅ Helper for datetime-local min value
+  const getNowLocal = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset();
+    const local = new Date(now.getTime() - offset * 60000);
+    return local.toISOString().slice(0, 16);
+  };
+
   const validate = () => {
     if (!reason.trim()) return "Please enter a reason for your request.";
     if (cart.length === 0) return "No items selected (your basket is empty).";
@@ -83,10 +90,22 @@ const Cart = () => {
       if (!c.requested_start || !c.requested_end) {
         return `Please set start and end date/time for "${c.name}".`;
       }
+
       const s = new Date(c.requested_start);
       const e = new Date(c.requested_end);
-      if (isNaN(s.getTime()) || isNaN(e.getTime()) || e <= s) {
-        return `Invalid date range for "${c.name}".`;
+      const now = new Date();
+
+      if (isNaN(s.getTime()) || isNaN(e.getTime())) {
+        return `Invalid date format for "${c.name}".`;
+      }
+
+      // ✅ NEW: prevent past dates
+      if (s < now) {
+        return `Start time cannot be in the past for "${c.name}".`;
+      }
+
+      if (e <= s) {
+        return `End time must be after start time for "${c.name}".`;
       }
     }
 
@@ -116,13 +135,13 @@ const Cart = () => {
       const created = res.created_requests || [];
       const failed = res.failed_items || [];
 
-      // Remove successfully created items from basket, keep failed items so user can adjust
       const createdIds = new Set(created.map((x) => Number(x.item_id)));
       const remaining = cart.filter((c) => !createdIds.has(Number(c.item_id)));
       saveCart(remaining);
 
       let msg = `Request submitted!\nApproved for processing: ${created.length}`;
-      if (failed.length > 0) msg += `\nNot submitted: ${failed.length} (please adjust dates and try again)`;
+      if (failed.length > 0)
+        msg += `\nNot submitted: ${failed.length} (please adjust dates and try again)`;
       alert(msg);
 
       if (remaining.length === 0) {
@@ -141,6 +160,8 @@ const Cart = () => {
     const missing = cart.filter((c) => !c.requested_start || !c.requested_end).length;
     return { missing };
   }, [cart]);
+
+  const minDateTime = getNowLocal(); // ✅ used in inputs
 
   return (
     <div className="container py-4">
@@ -229,6 +250,7 @@ const Cart = () => {
                           <input
                             type="datetime-local"
                             className="form-control"
+                            min={minDateTime} // ✅ prevents past selection
                             value={c.requested_start || ""}
                             onChange={(e) =>
                               updateItemField(c.item_id, "requested_start", e.target.value)
@@ -240,6 +262,7 @@ const Cart = () => {
                           <input
                             type="datetime-local"
                             className="form-control"
+                            min={minDateTime} // ✅ prevents past selection
                             value={c.requested_end || ""}
                             onChange={(e) =>
                               updateItemField(c.item_id, "requested_end", e.target.value)
@@ -260,10 +283,9 @@ const Cart = () => {
                       </button>
                     </div>
 
-			<div className="mt-3 p-2 bg-light border rounded small text-muted">
-        			I acknowledge that by borrowing this item, I am responsible for paying for its repair or replacement if it becomes damaged or lost due to negligence or improper use.
-        		</div>
-
+                    <div className="mt-3 p-2 bg-light border rounded small text-muted">
+                      I acknowledge that by borrowing this item, I am responsible for paying for its repair or replacement if it becomes damaged or lost due to negligence or improper use.
+                    </div>
                   </div>
                 </div>
               </div>
