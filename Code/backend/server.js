@@ -951,9 +951,11 @@ app.put("/api/request-cancel", authenticateToken, async (req, res) => {
       return res.json({ message: "Request already cancelled." });
     }
 
-    // allow cancel only when Pending
-    if (r.status !== "Pending") {
-      return res.status(409).json({ error: `Cannot cancel. Current status is ${r.status}.` });
+    // allow cancel when Pending OR Approved
+    if (!["Pending", "Approved"].includes(r.status)) {
+      return res.status(409).json({ 
+        error: `Cannot cancel. Current status is ${r.status}.` 
+      });
     }
 
     await query(

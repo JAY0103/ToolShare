@@ -143,7 +143,7 @@ const MyBookings = () => {
 
                     const busy = !!actionBusy[req.request_id];
 
-                    const canCancel = v === "pending";
+                    const canCancel = v === "pending" || v === "approved";
                     const isCancelled = v === "cancelled" || v === "canceled";
 
                     return (
