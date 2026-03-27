@@ -624,6 +624,18 @@ app.post("/api/book-item", authenticateToken, async (req, res) => {
   try {
     await autoMarkOverdue();
 
+    // 🔹 NEW: fetch category_id
+    const itemRows = await query(
+      `SELECT category_id FROM items WHERE item_id = ? LIMIT 1`,
+      [item_id]
+    );
+    if (!itemRows.length) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+
+    const category_id = itemRows[0].category_id;
+    const status = category_id === 4 ? "Approved" : "Pending";
+
     const conflicts = await query(
       `
       SELECT 1
@@ -643,8 +655,8 @@ app.post("/api/book-item", authenticateToken, async (req, res) => {
 
     const result = await query(
       `INSERT INTO borrowrequests (borrower_id, item_id, requested_start, requested_end, reason, status, request_group_id)
-       VALUES (?, ?, ?, ?, ?, 'Pending', NULL)`,
-      [borrower_id, item_id, requested_start, requested_end, reason]
+       VALUES (?, ?, ?, ?, ?, ?, NULL)`,
+      [borrower_id, item_id, requested_start, requested_end, reason, status]
     );
 
     const metaRows = await query(
@@ -663,8 +675,8 @@ app.post("/api/book-item", authenticateToken, async (req, res) => {
       const m = metaRows[0];
       const borrowerName = `${m.first_name || ""} ${m.last_name || ""}`.trim() || m.username || "A student";
       createNotification(m.owner_id, "New borrow request", `${borrowerName} requested "${m.item_name}".`, "request").catch(err => {
-    console.error("Notification failed:", err);
-  });
+        console.error("Notification failed:", err);
+      });
     }
 
     res.json({ message: "Borrow request submitted successfully", request_id: result.insertId });
@@ -720,7 +732,8 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
         continue;
       }
 
-      const itemRows = await query(`SELECT item_id, owner_id, name FROM items WHERE item_id = ? LIMIT 1`, [item_id]);
+      // 🔹 UPDATED: include category_id
+      const itemRows = await query(`SELECT item_id, owner_id, name, category_id FROM items WHERE item_id = ? LIMIT 1`, [item_id]);
       if (!itemRows.length) {
         failed.push({ item_id, error: "Item not found" });
         continue;
@@ -751,11 +764,14 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
         continue;
       }
 
+      // 🔹 NEW: determine status
+      const status = itemMeta.category_id === 4 ? "Approved" : "Pending";
+
       const ins = await query(
         `INSERT INTO borrowrequests
            (borrower_id, item_id, requested_start, requested_end, reason, status, request_group_id)
-         VALUES (?, ?, ?, ?, ?, 'Pending', ?)`,
-        [borrower_id, item_id, requested_start, requested_end, reason, group_id]
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [borrower_id, item_id, requested_start, requested_end, reason, status, group_id]
       );
 
       created.push({ request_id: ins.insertId, item_id, item_name: itemMeta.name });
@@ -780,8 +796,8 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
         `${borrowerName} requested ${agg.count} item(s): ${sampleNames}${more}`,
         "request"
       ).catch(err => {
-    console.error("Notification failed:", err);
-  });
+        console.error("Notification failed:", err);
+      });
     }
 
     res.json({
@@ -795,7 +811,6 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-
 // -------------------- CONDITION IMAGES ROUTES --------------------
 
 // Upload a new condition image for a borrow request
