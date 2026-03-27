@@ -9,6 +9,8 @@ const EditItem = () => {
 
   const [loading, setLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
   const [categories, setCategories] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -16,8 +18,11 @@ const EditItem = () => {
     description: "",
     category_id: "",
     image_url: "",
+    serial_number: "",
+    quantity: 0,
   });
 
+  // ---------------- INIT ----------------
   useEffect(() => {
     if (!itemId) {
       alert("Invalid item");
@@ -29,7 +34,6 @@ const EditItem = () => {
       try {
         setLoading(true);
 
-        // Load item
         const allItems = await itemsService.getItems();
         const found = allItems.find(
           (i) => Number(i.item_id) === Number(itemId)
@@ -44,10 +48,10 @@ const EditItem = () => {
             ? String(found.category_id)
             : "",
           image_url: found.image_url || "",
+          serial_number: found.serial_number || "",
+          quantity: found.quantity ?? 0,
         });
 
-        // Load categories
-        setCategoriesLoading(true);
         const cats = await itemsService.getCategories();
         setCategories(Array.isArray(cats) ? cats : []);
       } catch (err) {
@@ -62,6 +66,7 @@ const EditItem = () => {
     init();
   }, [itemId, navigate]);
 
+  // ---------------- HELPERS ----------------
   const getImageSrc = (image_url) => {
     if (!image_url)
       return "https://via.placeholder.com/400x250?text=No+Image";
@@ -71,39 +76,63 @@ const EditItem = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((p) => ({ ...p, [name]: value }));
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "quantity" ? Number(value) : value,
+    }));
   };
 
+  // ---------------- SUBMIT ----------------
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.name.trim() || !formData.description.trim()) {
+      alert("Please fill all required fields");
+      return;
+    }
+
+    if (formData.quantity < 0) {
+      alert("Quantity cannot be negative");
+      return;
+    }
+
     try {
+      setSubmitting(true);
+
       await itemsService.editItem(itemId, {
-        name: formData.name,
-        description: formData.description,
+        name: formData.name.trim(),
+        description: formData.description.trim(),
         category_id: formData.category_id || null,
+        serial_number: formData.serial_number.trim(),
+        quantity: formData.quantity,
       });
 
       alert("Item updated successfully!");
       navigate("/home");
     } catch (err) {
       alert(err.message || "Failed to update item");
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  // ---------------- LOADING ----------------
   if (loading) {
     return (
-      <div className="container p-4">
-        Loading...
+      <div className="container p-4 text-center">
+        Loading item details...
       </div>
     );
   }
 
+  // ---------------- UI ----------------
   return (
     <div className="container-fluid px-4 py-4">
       <h2 className="fw-bold mb-4">Edit Item</h2>
 
       <div className="row g-4">
-        {/* Image Preview */}
+        {/* IMAGE */}
         <div className="col-md-6">
           <div className="card shadow">
             <div
@@ -113,7 +142,6 @@ const EditItem = () => {
                 alignItems: "center",
                 justifyContent: "center",
                 background: "#f8f9fa",
-                overflow: "hidden",
               }}
             >
               <img
@@ -124,24 +152,16 @@ const EditItem = () => {
                   maxWidth: "100%",
                   objectFit: "contain",
                 }}
-                onError={(e) => {
-                  e.currentTarget.src =
-                    "https://via.placeholder.com/400x250?text=Image+Not+Found";
-                }}
               />
-            </div>
-
-            <div className="p-3 text-muted small">
-              Image editing is not enabled here. To change image,
-              delete and re-create the item.
             </div>
           </div>
         </div>
 
-        {/* Form */}
+        {/* FORM */}
         <div className="col-md-6">
           <div className="card shadow p-4">
             <form onSubmit={handleSubmit}>
+              {/* NAME */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
                   Item Name *
@@ -156,6 +176,7 @@ const EditItem = () => {
                 />
               </div>
 
+              {/* DESCRIPTION */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
                   Description *
@@ -163,14 +184,45 @@ const EditItem = () => {
                 <textarea
                   name="description"
                   className="form-control"
-                  rows="4"
+                  rows="3"
                   value={formData.description}
                   onChange={handleChange}
                   required
                 />
               </div>
 
-              {/* Category */}
+              {/* SERIAL NUMBER */}
+              <div className="mb-3">
+                <label className="form-label fw-bold">
+                  Serial Number *
+                </label>
+                <input
+                  type="text"
+                  name="serial_number"
+                  className="form-control"
+                  value={formData.serial_number}
+                  onChange={handleChange}
+                  placeholder="Enter serial number"
+                />
+              </div>
+
+              {/* QUANTITY */}
+              <div className="mb-3">
+                <label className="form-label fw-bold">
+                  Quantity *
+                </label>
+                <input
+                  type="number"
+                  name="quantity"
+                  className="form-control"
+                  value={formData.quantity}
+                  onChange={handleChange}
+                  min="0"
+                  required
+                />
+              </div>
+
+              {/* CATEGORY */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
                   Category *
@@ -187,6 +239,7 @@ const EditItem = () => {
                       ? "Loading categories..."
                       : "Uncategorized"}
                   </option>
+
                   {categories.map((c) => (
                     <option
                       key={c.category_id}
@@ -198,17 +251,19 @@ const EditItem = () => {
                 </select>
               </div>
 
+              {/* BUTTONS */}
               <button
                 type="submit"
-                className="btn btn-success fw-bold me-2"
+                className="btn btn-success me-2"
+                disabled={submitting}
               >
-                Save Changes
+                {submitting ? "Saving..." : "Save Changes"}
               </button>
 
               <button
                 type="button"
+                className="btn btn-secondary"
                 onClick={() => navigate("/home")}
-                className="btn btn-secondary fw-bold"
               >
                 Cancel
               </button>
