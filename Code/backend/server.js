@@ -608,6 +608,7 @@ app.put("/api/edit-item", authenticateToken, async (req, res) => {
 
 
 // -------------------- BORROW / BOOKINGS --------------------
+
 app.post("/api/book-item", authenticateToken, async (req, res) => {
   const { item_id, requested_start, requested_end, reason } = req.body;
   const borrower_id = req.user.userId;
@@ -624,7 +625,7 @@ app.post("/api/book-item", authenticateToken, async (req, res) => {
   try {
     await autoMarkOverdue();
 
-    // 🔹 NEW: fetch category_id
+    //fetch category_id
     const itemRows = await query(
       `SELECT category_id FROM items WHERE item_id = ? LIMIT 1`,
       [item_id]
@@ -651,6 +652,21 @@ app.post("/api/book-item", authenticateToken, async (req, res) => {
 
     if (conflicts.length > 0) {
       return res.status(409).json({ error: "This item is already booked for the selected time range." });
+    }
+
+    //NEW: enforce booking limit
+    const activeCountRows = await query(
+      `
+      SELECT COUNT(*) AS count
+      FROM borrowrequests
+      WHERE borrower_id = ?
+        AND status IN ('Pending','Approved','CheckedOut','Overdue')
+      `,
+      [borrower_id]
+    );
+
+    if (activeCountRows[0].count >= 5) {
+      return res.status(403).json({ error: "You have reached your booking limit." });
     }
 
     const result = await query(
@@ -686,7 +702,7 @@ app.post("/api/book-item", authenticateToken, async (req, res) => {
   }
 });
 
-// GROUP REQUEST
+
 app.post("/api/request-group", authenticateToken, async (req, res) => {
   const borrower_id = req.user.userId;
   const { reason, items } = req.body;
@@ -732,7 +748,6 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
         continue;
       }
 
-      // 🔹 UPDATED: include category_id
       const itemRows = await query(`SELECT item_id, owner_id, name, category_id FROM items WHERE item_id = ? LIMIT 1`, [item_id]);
       if (!itemRows.length) {
         failed.push({ item_id, error: "Item not found" });
@@ -764,7 +779,24 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
         continue;
       }
 
-      // 🔹 NEW: determine status
+      //NEW: enforce booking limit (account for created in this loop)
+      const activeCountRows = await query(
+        `
+        SELECT COUNT(*) AS count
+        FROM borrowrequests
+        WHERE borrower_id = ?
+          AND status IN ('Pending','Approved','CheckedOut','Overdue')
+        `,
+        [borrower_id]
+      );
+
+      const currentTotal = activeCountRows[0].count + created.length;
+
+      if (currentTotal >= 5) {
+        failed.push({ item_id, error: "Booking limit reached" });
+        continue;
+      }
+
       const status = itemMeta.category_id === 4 ? "Approved" : "Pending";
 
       const ins = await query(
@@ -811,6 +843,7 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
 // -------------------- CONDITION IMAGES ROUTES --------------------
 
 // Upload a new condition image for a borrow request
