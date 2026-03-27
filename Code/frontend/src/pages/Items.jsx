@@ -57,14 +57,12 @@ const Items = ({ searchTerm = "" }) => {
   const filteredItems = useMemo(() => {
     let result = [...items];
 
-    // Category filter
     if (selectedCategory !== "All Tools") {
       result = result.filter(
         (i) => (i.category_name || "Uncategorized") === selectedCategory
       );
     }
 
-    // Search filter
     if (localSearch) {
       const term = localSearch.toLowerCase();
       result = result.filter(
@@ -186,11 +184,18 @@ const Items = ({ searchTerm = "" }) => {
         )}
       </div>
 
+      {/* BOOKING POLICY */}
+      {!isStaff && (
+        <div className="alert alert-warning">
+          <strong>Booking Policy:</strong> Late returns may incur a penalty.
+          Damage fees may apply after inspection. Items must be returned in original condition.
+        </div>
+      )}
+
       {/* Filters */}
       <div className="card p-3 mb-4 shadow-sm">
         <div className="row g-3 align-items-end">
 
-          {/* SEARCH BAR */}
           <div className="col-md-4">
             <label className="form-label fw-bold">Search Tools</label>
             <input
@@ -202,7 +207,6 @@ const Items = ({ searchTerm = "" }) => {
             />
           </div>
 
-          {/* Start */}
           <div className="col-md-2">
             <label className="form-label fw-bold">Start</label>
             <input
@@ -213,7 +217,6 @@ const Items = ({ searchTerm = "" }) => {
             />
           </div>
 
-          {/* End */}
           <div className="col-md-2">
             <label className="form-label fw-bold">End</label>
             <input
@@ -224,7 +227,6 @@ const Items = ({ searchTerm = "" }) => {
             />
           </div>
 
-          {/* Category */}
           <div className="col-md-2">
             <label className="form-label fw-bold">Category</label>
             <select
@@ -240,7 +242,6 @@ const Items = ({ searchTerm = "" }) => {
             </select>
           </div>
 
-          {/* Buttons */}
           <div className="col-md-2 d-flex gap-2">
             <button
               className="btn btn-success flex-fill fw-bold"
@@ -287,10 +288,6 @@ const Items = ({ searchTerm = "" }) => {
                   <img
                     src={getImageSrc(item.image_url)}
                     alt={item.name}
-                    onError={(e) => {
-                      e.currentTarget.src =
-                        "https://via.placeholder.com/400x250?text=Image+Not+Found";
-                    }}
                   />
                 </div>
 
@@ -311,7 +308,14 @@ const Items = ({ searchTerm = "" }) => {
                 {!isStaff ? (
                   <button
                     className="btn btn-outline-success fw-bold w-100"
-                    onClick={() => addToCart(item)}
+                    onClick={() => {
+                      const confirm = window.confirm(
+                        "By adding this item, you agree to ToolShare's late and damage policy."
+                      );
+                      if (!confirm) return;
+
+                      addToCart(item);
+                    }}
                   >
                     Add to Basket
                   </button>
