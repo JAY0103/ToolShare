@@ -32,7 +32,7 @@ const apiRequest = async (endpoint, options = {}) => {
   return data;
 };
 
-// Optional helper (handy in pages)
+// Optional helper
 export const getUserRole = () => {
   try {
     const u = JSON.parse(localStorage.getItem("user") || "null");
@@ -42,7 +42,7 @@ export const getUserRole = () => {
   }
 };
 
-// AUTH SERVICE
+// ===================== AUTH SERVICE =====================
 export const authService = {
   login: (email, password) =>
     apiRequest("/api/login", {
@@ -70,9 +70,23 @@ export const authService = {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
   },
+
+  // Forgot Password
+  forgotPassword: (email) =>
+    apiRequest("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  // Reset Password
+  resetPassword: (token, password) =>
+    apiRequest(`/api/auth/reset-password/${token}`, {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
 };
 
-// ITEMS SERVICE
+// ===================== ITEMS SERVICE =====================
 export const itemsService = {
   getCategories: async () => {
     const d = await apiRequest("/api/categories");
@@ -108,51 +122,25 @@ export const itemsService = {
       method: "DELETE",
     }),
 
-
-// -------------------- Condition Images --------------------
-// Fetch all condition images for a borrow request
+  // Condition Images
   getBorrowRequestConditionImages: async (requestId) => {
     if (!requestId) throw new Error("Missing borrow request ID");
     const d = await apiRequest(`/api/borrowrequest/${requestId}/condition-images`);
     return d.images || [];
   },
 
-  // Upload a condition image for a borrow request
   uploadConditionImage: async (requestId, formData) => {
     if (!requestId) throw new Error("Missing borrow request ID");
     if (!formData) throw new Error("Missing form data");
 
-    const d = await apiRequest(
-      `/api/borrowrequest/${requestId}/condition-image`,
-      { method: "POST", body: formData }
-    );
-
-    // Returns server response: { image_url: ..., message: ... }
-    return d;
-  },
-
-  // Optional: fetch images by item_id (unused in your current frontend)
-  getConditionImages: async (itemId) => {
-    if (!itemId) throw new Error("Missing item ID");
-    const d = await apiRequest(`/api/condition-images/${itemId}`);
-    return d.images || [];
-  },
-
-  // Optional: upload images by item_id (unused in your current frontend)
-  uploadItemConditionImage: async (itemId, formData) => {
-    if (!itemId) throw new Error("Missing item ID");
-    if (!formData) throw new Error("Missing form data");
-
-    const d = await apiRequest(`/api/condition-images/${itemId}`, {
+    return await apiRequest(`/api/borrowrequest/${requestId}/condition-image`, {
       method: "POST",
       body: formData,
     });
-
-    return d;
   },
 };
 
-// BOOKINGS SERVICE
+// ===================== BOOKINGS SERVICE =====================
 export const bookingsService = {
   bookItem: (data) =>
     apiRequest("/api/book-item", {
@@ -193,9 +181,7 @@ export const bookingsService = {
       const isAlready =
         err?.status === 409 ||
         msg.includes("already") ||
-        msg.includes("cancel") ||
-        msg.includes("canceled") ||
-        msg.includes("cancelled");
+        msg.includes("cancel");
 
       if (isAlready) {
         return { ok: true, status: "Cancelled", alreadyCancelled: true };
@@ -216,41 +202,9 @@ export const bookingsService = {
       method: "PUT",
       body: JSON.stringify({ request_id: requestId }),
     }),
-
-  getOverdueBookings: async () => {
-    const d = await apiRequest("/api/overdue-requests");
-    return d.requests || [];
-  },
-
-  // With the updated backend:
-  // - Faculty gets their owned items
-  // - Admin gets ALL items (because server.js now returns all for admin)
-  getOwnerItems: async () => {
-    const d = await apiRequest("/api/owner/items");
-    return d.items || [];
-  },
-
-  // With the updated backend:
-  // - Faculty gets history for their owned items
-  // - Admin gets ALL history
-  getOwnerBookingHistory: async (filters = {}) => {
-    const qs = new URLSearchParams();
-
-    if (filters.search) qs.set("search", filters.search);
-    if (filters.status) qs.set("status", filters.status);
-    if (filters.from) qs.set("from", filters.from);
-    if (filters.to) qs.set("to", filters.to);
-    if (filters.item_id) qs.set("item_id", String(filters.item_id));
-
-    const queryString = qs.toString();
-    const endpoint = queryString ? `/api/owner/booking-history?${queryString}` : `/api/owner/booking-history`;
-
-    const d = await apiRequest(endpoint);
-    return d.requests || [];
-  },
 };
 
-// NOTIFICATIONS SERVICE
+// ===================== NOTIFICATIONS SERVICE =====================
 export const notificationsService = {
   getNotifications: () => apiRequest("/api/notifications"),
 
@@ -265,7 +219,7 @@ export const notificationsService = {
     }),
 };
 
-// ADMIN SERVICE
+// ===================== ADMIN SERVICE =====================
 export const adminService = {
   getAllRequests: async ({ q = "", status = "", start = "", end = "" } = {}) => {
     const params = new URLSearchParams();
@@ -280,5 +234,3 @@ export const adminService = {
 
   getReportsSummary: () => apiRequest("/api/admin/reports/summary"),
 };
-
-

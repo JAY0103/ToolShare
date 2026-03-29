@@ -15,6 +15,8 @@ import Items from "./pages/Items";
 import Cart from "./pages/Cart";
 import OwnerBookingHistory from "./pages/OwnerBookingHistory";
 import EditConditionImages from "./pages/EditConditionImages";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -56,6 +58,8 @@ function App() {
           <Route path="/cart" element={user ? <Cart /> : <Navigate to="/login" />} />
           <Route path="/owner-booking-history"element={isFacultyOrAdmin ? <OwnerBookingHistory /> : <Navigate to="/home" />} />
 	        <Route path="/edit-condition-images" element={isFacultyOrAdmin ? <EditConditionImages /> : <Navigate to="/home" />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
 	  </Routes>
       </div>
     </Router>
