@@ -4,13 +4,17 @@ import { authService } from '../services/api';
 const Signup = () => {
   const [formData, setFormData] = useState({
     first_name: '', last_name: '', student_id: '',
-    username: '', email: '', password: '', user_type: 'student'
+    username: '', email: '', password: '', 
   });
+  const[loading, setLoading] = useState(false);
+  const[error, setError] = useState('');
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
     try {
       const res = await authService.register(formData);
       localStorage.setItem('token', res.token);
