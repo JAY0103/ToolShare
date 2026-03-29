@@ -202,6 +202,30 @@ export const bookingsService = {
       method: "PUT",
       body: JSON.stringify({ request_id: requestId }),
     }),
+
+  // Owner/Admin: items dropdown for booking history filter
+  getOwnerItems: async () => {
+    const d = await apiRequest("/api/owner/items");
+    return d.items || [];
+  },
+ 
+  // Admin only: all items with booking history (for reports)
+  getAllItemsForHistory: async () => {
+    const d = await apiRequest("/api/owner/items");
+    return d.items || [];
+  },
+ 
+  // Owner/Admin: full booking history with filters
+  getOwnerBookingHistory: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.search)  params.set("search",  filters.search);
+    if (filters.status)  params.set("status",  filters.status);
+    if (filters.item_id) params.set("item_id", filters.item_id);
+    if (filters.from)    params.set("from",    filters.from);
+    if (filters.to)      params.set("to",      filters.to);
+    const d = await apiRequest(`/api/owner/booking-history?${params.toString()}`);
+    return d.requests || [];
+  },
 };
 
 // ===================== NOTIFICATIONS SERVICE =====================

@@ -1,4 +1,5 @@
 // server.js
+require("dotenv").config();
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -14,6 +15,8 @@ const nodemailer = require("nodemailer");
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "toolshare-2025-final-project";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://54.85.60.202"
+const GMAIL_USER = process.env.GMAIL_USER || "toolsharecapstone@gmail.com";
+const GMAIL_PASS = process.env.GMAIL_PASS || "";
 
 // -------------------- Create app --------------------
 const app = express();
@@ -38,8 +41,8 @@ const mailer = nodemailer.createTransport({
   port: 587,
   secure: false,
   auth: {
-    user:"toolsharecapstone@gmail.com",
-    pass:"jawz tnov jchw atgl"
+    user: GMAIL_USER,
+    pass: GMAIL_PASS
   },
 });
 
@@ -112,17 +115,24 @@ Thank you for using ToolShare.`,
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // MySQL Connection
-const db = mysql.createConnection({
-  host: "localhost",
-  port: "3306",
-  user: "toolshare",
-  password: "",
-  database: "project",
+const db = mysql.createPool({
+  host: process.env.DB_HOST || "localhost",
+  port: process.env.DB_PORT || "3306",
+  user: process.env.DB_USER || "toolshare",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "project",
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 });
 
-db.connect((err) => {
-  if (err) throw err;
+db.getConnection((err, connection) => {
+  if (err) {
+    console.error("Error connecting to MySQL database:", err);
+    return;
+  }
   console.log("Connected to MySQL database.");
+  connection.release();
 });
 
 // Helper: Query function
@@ -196,6 +206,7 @@ const createNotification = async (user_id, title, message, type = "info") => {
   const t = String(type || "").toLowerCase();
 
   const allowed = new Set([
+    "info",
     "request",
     "approved",
     "rejected",
@@ -203,7 +214,6 @@ const createNotification = async (user_id, title, message, type = "info") => {
     "checkedout",
     "returned",
     "overdue",
-    "info",
   ]);
 
   const safeType = allowed.has(t) ? t : "info";
@@ -654,7 +664,7 @@ app.post("/api/book-item", authenticateToken, async (req, res) => {
       return res.status(409).json({ error: "This item is already booked for the selected time range." });
     }
 
-    //NEW: enforce booking limit
+    //Enforce booking limit
     const activeCountRows = await query(
       `
       SELECT COUNT(*) AS count
@@ -779,7 +789,7 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
         continue;
       }
 
-      //NEW: enforce booking limit (account for created in this loop)
+      //Enforce booking limit (account for created in this loop)
       const activeCountRows = await query(
         `
         SELECT COUNT(*) AS count
@@ -853,7 +863,7 @@ app.post(
   uploadConditionImage.single("image"),
   async (req, res) => {
     try {
-      const borrowRequestId = Number(req.params.id); // <-- define it here
+      const borrowRequestId = Number(req.params.id); 
       const { image_type } = req.body;
 
       if (!borrowRequestId || !["Before", "After"].includes(image_type)) {
@@ -899,7 +909,10 @@ app.get("/api/borrowrequest/:id/condition-images", authenticateToken, async (req
 
   try {
     const images = await query(
-      `SELECT id, image_url, image_type, timestamp
+      `SELECT image_id AS id,
+              CONCAT('/uploads/condition-images/', filename) AS image_url,
+              image_type, 
+              timestamp
        FROM conditionimages
        WHERE borrow_request_id = ?
        ORDER BY timestamp ASC`,
@@ -922,7 +935,10 @@ app.get("/api/condition-images/:item_id", authenticateToken, async (req, res) =>
 
   try {
     const images = await query(
-      `SELECT id, filename, created_at
+      `SELECT image_id AS id,
+              CONCAT('/uploads/condition-images/', filename) AS image_url,
+              image_type, 
+              timestamp AS created_at
        FROM conditionimages
        WHERE item_id = ?
        ORDER BY created_at ASC`,
@@ -948,16 +964,17 @@ app.post(
 
     try {
       const filename = req.file.filename;
+      const image_type = req.body.image_type === "After" ? "After" : "Before"; 
 
       const result = await query(
-        `INSERT INTO conditionimages (item_id, filename, created_at)
-         VALUES (?, ?, NOW())`,
-        [item_id, filename]
+        `INSERT INTO conditionimages (item_id, borrow_request_id, filename, image_type)
+         VALUES (?, NULL, ?, ?)`,
+        [item_id, filename, image_type]
       );
 
       res.json({
         ok: true,
-        image: { id: result.insertId, item_id, filename, created_at: new Date() },
+        image: { id: result.insertId, item_id, image_url: `/uploads/condition-images/${filename}`, image_type, created_at: new Date() },
       });
     } catch (err) {
       console.error("upload condition image error:", err);
@@ -1025,7 +1042,7 @@ app.put("/api/request-cancel", authenticateToken, async (req, res) => {
     console.error("Notification failed:", err);
   });
 
-    // notify borrower (optional)
+    // notify borrower 
     createNotification(
       r.borrower_id,
       "Request cancelled",
@@ -1068,7 +1085,7 @@ app.get("/api/my-requests", authenticateToken, async (req, res) => {
   }
 });
 
-// Owner incoming requests (owner view)  ✅ UPDATED: Admin can see ALL
+// Owner incoming requests (owner view) / Admin can see all requests here 
 app.get("/api/item-requests", authenticateToken, async (req, res) => {
   try {
     await autoMarkOverdue();
@@ -1091,7 +1108,7 @@ app.get("/api/item-requests", authenticateToken, async (req, res) => {
     const params = [];
 
     // Faculty (tool owner): only requests for their items
-    // Admin: no filter (sees everything)
+    // Admin can sees everything
     if (!isAdmin(req)) {
       sql += ` WHERE i.owner_id = ? `;
       params.push(req.user.userId);
@@ -1145,8 +1162,8 @@ app.get("/api/owner/booking-history", authenticateToken, async (req, res) => {
     const where = [];
     const params = [];
 
-    // ✅ Faculty: only their owned items
-    // ✅ Admin: see everything (no owner filter)
+    // Faculty: only their owned items
+    // Admin: see everything (no owner filter)
     if (!isAdmin(req)) {
       where.push("i.owner_id = ?");
       params.push(req.user.userId);
@@ -1592,6 +1609,73 @@ app.get("/api/overdue-requests", authenticateToken, async (req, res) => {
     res.json({ requests: overdue });
   } catch (err) {
     console.error("overdue-requests error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// -------------------- FORGOT / RESET PASSWORD --------------------
+ 
+// Store reset tokens in memory for simplicity
+const resetTokens = new Map(); // token -> { userId, email, expires }
+ 
+app.post("/api/auth/forgot-password", async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "Email is required." });
+ 
+  try {
+    const rows = await query("SELECT user_id, email FROM users WHERE email = ? LIMIT 1", [email]);
+    
+    if (!rows.length) return res.json({ message: "If that email exists, a reset link has been sent." });
+ 
+    const user = rows[0];
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = Date.now() + 1000 * 60 * 60; // 1 hour
+ 
+    resetTokens.set(token, { userId: user.user_id, email: user.email, expires });
+ 
+    const resetUrl = `${FRONTEND_URL}/reset-password/${token}`;
+ 
+    await mailer.sendMail({
+      from: `"ToolShare" <${GMAIL_USER}>`,
+      to: user.email,
+      subject: "ToolShare: Password Reset Request",
+      text: `You requested a password reset.\n\nClick the link below (expires in 1 hour):\n${resetUrl}\n\nIf you did not request this, ignore this email.`,
+      html: `
+        <p>You requested a password reset.</p>
+        <p><a href="${resetUrl}">Reset your password</a></p>
+        <p>This link expires in 1 hour. If you did not request this, ignore this email.</p>
+      `,
+    });
+ 
+    res.json({ message: "If that email exists, a reset link has been sent." });
+  } catch (err) {
+    console.error("forgot-password error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+ 
+app.post("/api/auth/reset-password/:token", async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+ 
+  if (!token || !password) return res.status(400).json({ error: "Token and password are required." });
+  if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters." });
+ 
+  const entry = resetTokens.get(token);
+ 
+  if (!entry) return res.status(400).json({ error: "Invalid or expired reset token." });
+  if (Date.now() > entry.expires) {
+    resetTokens.delete(token);
+    return res.status(400).json({ error: "Reset token has expired. Please request a new one." });
+  }
+ 
+  try {
+    const hashed = await bcrypt.hash(password, 10);
+    await query("UPDATE users SET password = ? WHERE user_id = ?", [hashed, entry.userId]);
+    resetTokens.delete(token);
+    res.json({ message: "Password reset successfully." });
+  } catch (err) {
+    console.error("reset-password error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
