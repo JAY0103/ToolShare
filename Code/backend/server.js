@@ -1,5 +1,6 @@
 // server.js
 require("dotenv").config();
+console.log("ENV CHECK:", process.env.DB_HOST);
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -28,7 +29,7 @@ app.use(express.urlencoded({ extended: true }));
 // CORS (safe defaults for JWT in Authorization header)
 app.use(
   cors({
-    origin: "http://54.85.60.202",
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -50,7 +51,7 @@ async function sendReturnedEmail(toEmail, itemName) {
   if (!toEmail) return;
 
   await mailer.sendMail({
-    from: `"ToolShare" <toolsharecapstone@gmail.com>`,
+    from: `"ToolShare" <${GMAIL_USER}>`,
     to: toEmail,
     subject: "ToolShare: Item Returned",
     text: `Hello,
@@ -71,7 +72,7 @@ async function sendApprovedEmail(toEmail, itemName) {
   if (!toEmail) return;
 
   await mailer.sendMail({
-    from: `"ToolShare" <toolsharecapstone@gmail.com>`,
+    from: `"ToolShare" <${GMAIL_USER}>`,
     to: toEmail,
     subject: "ToolShare: Request Approved",
     text: `Hello,
@@ -92,7 +93,7 @@ async function sendRejectedEmail(toEmail, itemName, rejectionReason) {
   if (!toEmail) return;
 
   await mailer.sendMail({
-    from: `"ToolShare" <toolsharecapstone@gmail.com>`,
+    from: `"ToolShare" <${GMAIL_USER}>`,
     to: toEmail,
     subject: "ToolShare: Request Rejected",
     text: `Hello,
