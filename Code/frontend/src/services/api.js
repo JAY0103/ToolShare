@@ -16,7 +16,10 @@ const apiRequest = async (endpoint, options = {}) => {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
+    const isAuthError = res.status === 401 || res.status === 403;
+    const isLoginRequest = endpoint === "/api/login";
+
+    if (isAuthError && !isLoginRequest) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       alert("Session expired. Please login again.");
@@ -47,7 +50,10 @@ export const authService = {
   login: (email, password) =>
     apiRequest("/api/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({
+        email: String(email || "").trim().toLowerCase(),
+        password,
+      }),
     }),
 
   register: (formData) =>
@@ -58,7 +64,7 @@ export const authService = {
         last_name: formData.last_name,
         student_id: formData.student_id,
         username: formData.username,
-        email: formData.email,
+        email: String(formData.email || "").trim().toLowerCase(),
         password: formData.password,
         user_type: formData.user_type === "student" ? "Student" : "Faculty",
       }),
@@ -71,14 +77,14 @@ export const authService = {
     localStorage.removeItem("user");
   },
 
-  // Forgot Password
   forgotPassword: (email) =>
     apiRequest("/api/auth/forgot-password", {
       method: "POST",
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({
+        email: String(email || "").trim().toLowerCase(),
+      }),
     }),
 
-  // Reset Password
   resetPassword: (token, password) =>
     apiRequest(`/api/auth/reset-password/${token}`, {
       method: "POST",
@@ -122,7 +128,6 @@ export const itemsService = {
       method: "DELETE",
     }),
 
-  // Condition Images
   getBorrowRequestConditionImages: async (requestId) => {
     if (!requestId) throw new Error("Missing borrow request ID");
     const d = await apiRequest(`/api/borrowrequest/${requestId}/condition-images`);
@@ -202,30 +207,6 @@ export const bookingsService = {
       method: "PUT",
       body: JSON.stringify({ request_id: requestId }),
     }),
-
-  // Owner/Admin: items dropdown for booking history filter
-  getOwnerItems: async () => {
-    const d = await apiRequest("/api/owner/items");
-    return d.items || [];
-  },
- 
-  // Admin only: all items with booking history (for reports)
-  getAllItemsForHistory: async () => {
-    const d = await apiRequest("/api/owner/items");
-    return d.items || [];
-  },
- 
-  // Owner/Admin: full booking history with filters
-  getOwnerBookingHistory: async (filters = {}) => {
-    const params = new URLSearchParams();
-    if (filters.search)  params.set("search",  filters.search);
-    if (filters.status)  params.set("status",  filters.status);
-    if (filters.item_id) params.set("item_id", filters.item_id);
-    if (filters.from)    params.set("from",    filters.from);
-    if (filters.to)      params.set("to",      filters.to);
-    const d = await apiRequest(`/api/owner/booking-history?${params.toString()}`);
-    return d.requests || [];
-  },
 };
 
 // ===================== NOTIFICATIONS SERVICE =====================
