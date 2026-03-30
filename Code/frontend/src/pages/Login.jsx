@@ -28,7 +28,7 @@ const Login = () => {
       localStorage.setItem('user', JSON.stringify(res.user));
 
       // Redirect without reload
-      navigate('/home');
+      window.location.href = '/home';
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {
