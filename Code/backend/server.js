@@ -28,7 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 // CORS (safe defaults for JWT in Authorization header)
 app.use(
   cors({
-    origin: true,
+    origin: "http://54.85.60.202",
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
