@@ -120,7 +120,6 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/admin" element={ user && user.user_type === "admin" ? ( <AdminPanel /> ) : ( <Navigate to="/home" /> ) } />
-      
         </Routes>
       </div>
     </Router>
