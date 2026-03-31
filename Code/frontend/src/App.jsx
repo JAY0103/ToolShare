@@ -17,6 +17,7 @@ import OwnerBookingHistory from "./pages/OwnerBookingHistory";
 import EditConditionImages from "./pages/EditConditionImages";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import AdminPanel from "./pages/AdminPanel";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -67,7 +68,7 @@ function App() {
       <div>
         <Routes>
           <Route
-path="/login"
+            path="/login"
             element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/home" />}
           />
           <Route
@@ -118,6 +119,8 @@ path="/login"
           />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/admin" element={ user && user.user_type === "admin" ? ( <AdminPanel /> ) : ( <Navigate to="/home" /> ) } />
+      
         </Routes>
       </div>
     </Router>

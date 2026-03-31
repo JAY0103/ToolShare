@@ -157,6 +157,12 @@ const Navbar = () => {
                       Add Tool
                     </button>
 
+                    {isAdmin && (
+                      <button onClick={() => go("/admin")} className={navBtnClass("/admin")}>
+                       Admin Panel
+                      </button>
+                    )}
+
                     <button onClick={() => go("/requested-bookings")} className={navBtnClass("/requested-bookings")}>
                       Incoming Requests
                     </button>
@@ -261,6 +267,12 @@ const Navbar = () => {
                 <button onClick={() => go("/items")} className="btn btn-outline-success mb-2">
                   {isStaff ? "Manage Tools" : "Browse Tools"}
                 </button>
+
+                {isAdmin && (
+                <button onClick={() => go("/admin")} className="btn btn-outline-success mb-2">
+                  Admin Panel
+                </button>
+                )}
 
                 <button onClick={handleLogout} className="btn btn-danger">
                   Logout
