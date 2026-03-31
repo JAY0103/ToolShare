@@ -14,7 +14,7 @@ const nodemailer = require("nodemailer");
 
 // -------------------- Constants --------------------
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
-const JWT_SECRET = process.env.JWT_SECRET || "toolshare-2025-final-project";
+const JWT_SECRET = process.env.JWT_SECRET || "";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://54.85.60.202"
 const GMAIL_USER = process.env.GMAIL_USER || "toolsharecapstone@gmail.com";
 const GMAIL_PASS = process.env.GMAIL_PASS || "";
