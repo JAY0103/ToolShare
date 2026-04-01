@@ -169,10 +169,29 @@ export const bookingsService = {
     return d.requests || [];
   },
 
-  getOwnerBookingHistory: async () => {
-  const d = await apiRequest("/api/owner-booking-history");
-  return d.requests || d.bookings || [];
-},
+  getOwnerItems: async () => {
+    const d = await apiRequest("/api/owner/items");
+    return d.items || [];
+  },
+
+  getOwnerBookingHistory: async (params = {}) => {
+    const query = new URLSearchParams();
+
+    if (params.search) query.set("search", params.search);
+    if (params.status) query.set("status", params.status);
+    if (params.item_id) query.set("item_id", params.item_id);
+    if (params.from) query.set("from", params.from);
+    if (params.to) query.set("to", params.to);
+    if (params.admin_all) query.set("admin_all", params.admin_all);
+
+    const qs = query.toString();
+
+    const d = await apiRequest(
+      `/api/owner/booking-history${qs ? `?${qs}` : ""}`
+    );
+
+    return d.requests || [];
+  },
 
   updateRequestStatus: (requestId, status, decision_note = "") =>
     apiRequest("/api/request-status", {
@@ -213,7 +232,6 @@ export const bookingsService = {
       body: JSON.stringify({ request_id: requestId }),
     }),
 };
-
 // ===================== NOTIFICATIONS SERVICE =====================
 export const notificationsService = {
   getNotifications: () => apiRequest("/api/notifications"),
