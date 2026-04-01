@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
@@ -61,6 +60,9 @@ function App() {
   const isFacultyOrAdmin =
     user && ["faculty", "admin"].includes(String(user.user_type || "").toLowerCase());
 
+  const isAdmin =
+    user && String(user.user_type || "").toLowerCase() === "admin";
+
   return (
     <Router>
       {user && <Navbar onLogout={handleLogout} />}
@@ -98,7 +100,7 @@ function App() {
             element={isFacultyOrAdmin ? <RequestedBookings /> : <Navigate to="/home" />}
           />
           <Route
-            path="/edit-item"
+            path="/edit-item/:id"
             element={isFacultyOrAdmin ? <EditItem /> : <Navigate to="/home" />}
           />
           <Route
@@ -119,7 +121,10 @@ function App() {
           />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
-          <Route path="/admin" element={ user && user.user_type === "admin" ? ( <AdminPanel /> ) : ( <Navigate to="/home" /> ) } />
+          <Route
+            path="/admin"
+            element={isAdmin ? <AdminPanel /> : <Navigate to="/home" />}
+          />
         </Routes>
       </div>
     </Router>
