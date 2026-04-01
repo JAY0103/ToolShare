@@ -169,6 +169,11 @@ export const bookingsService = {
     return d.requests || [];
   },
 
+  getOwnerBookingHistory: async () => {
+  const d = await apiRequest("/api/owner-booking-history");
+  return d.requests || d.bookings || [];
+},
+
   updateRequestStatus: (requestId, status, decision_note = "") =>
     apiRequest("/api/request-status", {
       method: "PUT",
