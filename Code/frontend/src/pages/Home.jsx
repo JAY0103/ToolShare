@@ -132,7 +132,7 @@ const Home = () => {
     null;
 
   // ----------- API action resolver -----------
-  const callStatusUpdate = async (requestId, nextStatus) => {
+  const callStatusUpdate = async (requestId, nextStatus, extra = {}) => {
     const candidates = [
       adminService?.updateRequestStatus,
       adminService?.setRequestStatus,
@@ -150,19 +150,42 @@ const Home = () => {
       throw new Error("No status update method found. Add updateRequestStatus(requestId, status) to your service.");
     }
 
+    const payload = {
+      request_id: requestId,
+      id: requestId,
+      status: nextStatus,
+      booking_status: nextStatus,
+      request_status: nextStatus,
+      ...extra,
+    };
+
     let lastErr;
     for (const fn of candidates) {
       try {
-        return await fn(requestId, nextStatus);
+        return await fn(requestId, nextStatus, extra);
       } catch (e1) {
         lastErr = e1;
-        try {
-          return await fn({ request_id: requestId, status: nextStatus });
-        } catch (e2) {
-          lastErr = e2;
-        }
+      }
+
+      try {
+        return await fn(requestId, nextStatus, extra?.reason || extra?.rejection_reason || extra?.note || "");
+      } catch (e2) {
+        lastErr = e2;
+      }
+
+      try {
+        return await fn(payload);
+      } catch (e3) {
+        lastErr = e3;
+      }
+
+      try {
+        return await fn(requestId, payload);
+      } catch (e4) {
+        lastErr = e4;
       }
     }
+
     throw lastErr || new Error("Failed to update status");
   };
 
@@ -199,17 +222,42 @@ const Home = () => {
     throw lastErr || new Error("Failed to cancel request");
   };
 
-  const handleStatusChange = async (requestId, nextStatus) => {
+  const handleStatusChange = async (requestId, nextStatus, extra = {}) => {
     if (!requestId) return;
     try {
       setBusy(requestId, true);
-      await callStatusUpdate(requestId, nextStatus);
+      await callStatusUpdate(requestId, nextStatus, extra);
       await loadData();
     } catch (err) {
       alert(err?.message || "Could not update status. Check your backend route/service method.");
     } finally {
       setBusy(requestId, false);
     }
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    if (!requestId) return;
+
+    const reason = window.prompt("Enter rejection reason:", "")?.trim();
+    if (!reason) {
+      alert("Rejection reason is required.");
+      return;
+    }
+
+    await handleStatusChange(requestId, "Rejected", {
+      reason,
+      note: reason,
+      rejection_reason: reason,
+      rejectionReason: reason,
+    });
+  };
+
+  const goToConditionImages = (requestId) => {
+    if (!requestId) return;
+
+    navigate(`/edit-condition-images/${requestId}`, {
+      state: { requestId, mode: "checkout", source: "home" },
+    });
   };
 
   const handleCancelRequest = async (requestId) => {
@@ -314,7 +362,7 @@ const Home = () => {
       return;
     }
     alert("Added to basket. Select dates and submit your request.");
-    navigate("/basket"); // change if your basket route differs
+    navigate("/basket");
   };
 
   // ----------- load data -----------
@@ -457,24 +505,12 @@ const Home = () => {
   }, [incomingRequests, isFaculty]);
 
   // Faculty recent incoming (pending)
-  const RECENT_HOURS = 24;
-  const isWithinLastHours = (dateStr, hours = 24) => {
-    if (!dateStr) return false;
-    const t = new Date(dateStr).getTime();
-    if (Number.isNaN(t)) return false;
-    return t >= Date.now() - hours * 60 * 60 * 1000;
-  };
-
+  // Removed the 24h cutoff so older pending requests are still visible.
   const facultyRecentIncoming = useMemo(() => {
     if (!isFaculty) return [];
     const arr = safeArr(incomingRequests);
 
     return arr
-      .filter((r) => {
-        const created = getRequestCreatedDate(r);
-        if (created) return isWithinLastHours(created, RECENT_HOURS);
-        return isWithinLastHours(r.requested_start, RECENT_HOURS);
-      })
       .filter((r) => isStatus(getStatusValue(r), "Pending"))
       .sort((a, b) => {
         const da = new Date(getRequestCreatedDate(a) || a.requested_start || 0).getTime();
@@ -570,36 +606,40 @@ const Home = () => {
           {/* ================== ADMIN: KPI CARDS ================== */}
           <div className="row g-3 mb-4">
             <div className="col-12 col-md-4 col-lg-3">
-              <div className="card p-3 shadow-sm h-100"
-                   style={{ cursor: "pointer" }}
-                   onClick={() => navigate("/items")}>
+              <div className="card p-3 shadow-sm h-100" style={{ cursor: "pointer" }} onClick={() => navigate("/items")}>
                 <div className="text-muted fw-bold">Total Tools</div>
                 <div className="fs-3 fw-bold">{allItems.length}</div>
               </div>
             </div>
 
             <div className="col-6 col-md-4 col-lg-3">
-              <div className="card p-3 shadow-sm h-100"
-                   style={{ cursor: "pointer" }}
-                   onClick={() => navigate("/admin/requests?filter=today")}>
+              <div
+                className="card p-3 shadow-sm h-100"
+                style={{ cursor: "pointer" }}
+                onClick={() => navigate("/requested-bookings")}
+              >
                 <div className="text-muted fw-bold">Requests Today</div>
                 <div className="fs-3 fw-bold">{adminRequestsToday.length}</div>
               </div>
             </div>
 
             <div className="col-6 col-md-4 col-lg-3">
-              <div className="card p-3 shadow-sm h-100"
-                   style={{ cursor: "pointer" }}
-                   onClick={() => navigate("/admin/requests?status=pending")}>
+              <div
+                className="card p-3 shadow-sm h-100"
+                style={{ cursor: "pointer" }}
+                onClick={() => navigate("/requested-bookings")}
+              >
                 <div className="text-muted fw-bold">Pending Approvals</div>
                 <div className="fs-3 fw-bold">{statusMap.get("Pending") || statusMap.get("pending") || 0}</div>
               </div>
             </div>
 
             <div className="col-6 col-md-4 col-lg-3">
-              <div className="card p-3 shadow-sm h-100"
-                   style={{ cursor: "pointer" }}
-                   onClick={() => navigate("/admin/requests?status=checkedout")}>
+              <div
+                className="card p-3 shadow-sm h-100"
+                style={{ cursor: "pointer" }}
+                onClick={() => navigate("/owner-booking-history")}
+              >
                 <div className="text-muted fw-bold">Active Checkouts</div>
                 <div className="fs-3 fw-bold">
                   {statusMap.get("CheckedOut") || statusMap.get("Checked Out") || statusMap.get("checkedout") || 0}
@@ -608,9 +648,11 @@ const Home = () => {
             </div>
 
             <div className="col-6 col-md-4 col-lg-3">
-              <div className="card p-3 shadow-sm h-100"
-                   style={{ cursor: "pointer" }}
-                   onClick={() => navigate("/admin/requests?status=overdue")}>
+              <div
+                className="card p-3 shadow-sm h-100"
+                style={{ cursor: "pointer" }}
+                onClick={() => navigate("/owner-booking-history")}
+              >
                 <div className="text-muted fw-bold">Overdue</div>
                 <div className="fs-3 fw-bold">{statusMap.get("Overdue") || statusMap.get("overdue") || 0}</div>
               </div>
@@ -626,7 +668,8 @@ const Home = () => {
                   <div>
                     <h5 className="fw-bold mb-0">
                       <i className="bi bi-hourglass-split me-2"></i>
-                      Pending Approvals</h5>
+                      Pending Approvals
+                    </h5>
                     <div className="text-muted small">Only the newest pending requests</div>
                   </div>
                 </div>
@@ -666,7 +709,7 @@ const Home = () => {
                                   <button
                                     className="btn btn-danger btn-sm fw-bold"
                                     disabled={busy}
-                                    onClick={() => handleStatusChange(rid, "Rejected")}
+                                    onClick={() => handleRejectRequest(rid)}
                                   >
                                     Reject
                                   </button>
@@ -776,9 +819,9 @@ const Home = () => {
                                 <button
                                   className="btn btn-primary btn-sm fw-bold"
                                   disabled={busy}
-                                  onClick={() => handleStatusChange(rid, "CheckedOut")}
+                                  onClick={() => goToConditionImages(rid)}
                                 >
-                                  Mark Checked Out
+                                  Add Condition Images
                                 </button>
                               </td>
                             </tr>
@@ -964,9 +1007,7 @@ const Home = () => {
                 </table>
 
                 {safeArr(myRequests).length > 3 && (
-                  <div className="text-muted small mt-2">
-                    Showing 3 of {myRequests.length}. Click “View All” for the full list.
-                  </div>
+                  <div className="text-muted small mt-2">Showing 3 of {myRequests.length}. Click “View All” for the full list.</div>
                 )}
               </div>
             )}
@@ -1026,7 +1067,7 @@ const Home = () => {
                 </div>
 
                 {facultyRecentIncoming.length === 0 ? (
-                  <div className="alert alert-info mt-3 mb-0">No new requests recently.</div>
+                  <div className="alert alert-info mt-3 mb-0">No pending requests.</div>
                 ) : (
                   <div className="table-responsive mt-3">
                     <table className="table align-middle mb-0">
@@ -1079,7 +1120,7 @@ const Home = () => {
                                   <button
                                     className="btn btn-danger btn-sm fw-bold"
                                     disabled={busy}
-                                    onClick={() => handleStatusChange(rid, "Rejected")}
+                                    onClick={() => handleRejectRequest(rid)}
                                   >
                                     Reject
                                   </button>
@@ -1093,9 +1134,7 @@ const Home = () => {
                       </tbody>
                     </table>
 
-                    <div className="text-muted small mt-2">
-                      Showing {facultyRecentIncoming.length} most recent requested bookings.
-                    </div>
+                    <div className="text-muted small mt-2">Showing {facultyRecentIncoming.length} most recent pending bookings.</div>
                   </div>
                 )}
               </div>
@@ -1123,7 +1162,7 @@ const Home = () => {
                           <th>Tool</th>
                           <th>Requester</th>
                           <th>Pickup Time</th>
-                          <th style={{ width: 170 }}>Action</th>
+                          <th style={{ width: 190 }}>Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1143,9 +1182,9 @@ const Home = () => {
                                 <button
                                   className="btn btn-primary btn-sm fw-bold"
                                   disabled={busy}
-                                  onClick={() => handleStatusChange(rid, "CheckedOut")}
+                                  onClick={() => goToConditionImages(rid)}
                                 >
-                                  Mark Checked Out
+                                  Add Condition Images
                                 </button>
                               </td>
                             </tr>
@@ -1165,7 +1204,8 @@ const Home = () => {
                   <div>
                     <h5 className="fw-bold mb-0">
                       <i className="bi bi-arrow-return-left me-2"></i>
-                      Due Today</h5>
+                      Due Today
+                    </h5>
                   </div>
                 </div>
 

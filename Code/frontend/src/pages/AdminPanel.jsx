@@ -1,13 +1,11 @@
-// src/pages/AdminPanel.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { adminService, itemsService, API_BASE } from "../services/api";
+import { adminService, itemsService } from "../services/api";
 
 const SECTIONS = [
-  { key: "tools",      label: "Manage Tools",       icon: "bi-tools" },
-  { key: "users",      label: "Manage Users",       icon: "bi-people-fill" },
-  { key: "categories", label: "Manage Categories",  icon: "bi-tag-fill" },
-  { key: "faculties",  label: "Manage Faculties",   icon: "bi-building-fill" },
+  { key: "users", label: "Manage Users", icon: "bi-people-fill" },
+  { key: "categories", label: "Manage Categories", icon: "bi-tag-fill" },
+  { key: "faculties", label: "Manage Faculties", icon: "bi-building-fill" },
 ];
 
 const ROLES = ["Student", "Faculty", "Admin"];
@@ -18,10 +16,8 @@ const roleBadge = (role) => {
   return "bg-secondary";
 };
 
-// Helper for simple browser confirm dialogs
 const confirmAction = (msg) => window.confirm(msg);
 
-// Reusable section header
 const SectionHeader = ({ title, subtitle, action }) => (
   <div className="mb-4 d-flex flex-wrap justify-content-between align-items-start gap-3">
     <div>
@@ -31,246 +27,6 @@ const SectionHeader = ({ title, subtitle, action }) => (
     {action ? <div>{action}</div> : null}
   </div>
 );
-
-// ══════════════════════════════════════════════════════════════════════════════
-// TOOLS SECTION
-// ══════════════════════════════════════════════════════════════════════════════
-const ToolsSection = () => {
-  const navigate = useNavigate();
-
-  const [items, setItems] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState({});
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      // Load tools and categories in parallel
-      const [itemsRes, categoriesRes] = await Promise.all([
-        itemsService.getAllItems(),
-        itemsService.getCategories(),
-      ]);
-
-      setItems(Array.isArray(itemsRes) ? itemsRes : []);
-      setCategories(Array.isArray(categoriesRes) ? categoriesRes : []);
-    } catch (err) {
-      alert(err.message || "Failed to load tools");
-      setItems([]);
-      setCategories([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const handleDelete = async (itemId, itemName) => {
-    if (!confirmAction(`Delete tool "${itemName}"? This cannot be undone.`)) return;
-
-    setBusy((b) => ({ ...b, [itemId]: true }));
-    try {
-      await itemsService.deleteItem(itemId);
-      await load();
-    } catch (err) {
-      alert(err.message || "Failed to delete tool");
-    } finally {
-      setBusy((b) => ({ ...b, [itemId]: false }));
-    }
-  };
-
-  const filteredItems = items.filter((item) => {
-    const q = search.trim().toLowerCase();
-
-    const matchesSearch =
-      !q ||
-      String(item.name || "").toLowerCase().includes(q) ||
-      String(item.description || "").toLowerCase().includes(q) ||
-      String(item.category_name || "").toLowerCase().includes(q) ||
-      String(item.faculty_name || "").toLowerCase().includes(q) ||
-      String(item.serial_number || "").toLowerCase().includes(q);
-
-    const matchesCategory =
-      selectedCategory === "All" ||
-      String(item.category_name || "") === selectedCategory;
-
-    return matchesSearch && matchesCategory;
-  });
-
-  return (
-    <div>
-      <SectionHeader
-        title="Manage Tools"
-        subtitle="Add, edit, search, and remove equipment from the system."
-        action={
-          <button
-            className="btn btn-success fw-bold"
-            onClick={() => navigate("/add-item")}
-          >
-            <i className="bi bi-plus-circle me-2"></i>
-            Add New Tool
-          </button>
-        }
-      />
-
-      {/* Filters */}
-      <div className="card shadow-sm border-0 mb-4">
-        <div className="card-body">
-          <div className="row g-3">
-            <div className="col-md-7">
-              <label className="form-label fw-semibold">Search</label>
-              <input
-                className="form-control"
-                placeholder="Search by tool name, description, category, faculty, serial number..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-
-            <div className="col-md-5">
-              <label className="form-label fw-semibold">Category</label>
-              <select
-                className="form-select"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                <option value="All">All Categories</option>
-                {categories.map((c) => (
-                  <option key={c.category_id} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tools table */}
-      {loading ? (
-        <div className="text-muted py-4">Loading tools...</div>
-      ) : (
-        <div className="table-responsive">
-          <table className="table table-hover align-middle">
-            <thead className="table-light">
-              <tr>
-                <th style={{ minWidth: 90 }}>Image</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Faculty</th>
-                <th>Qty</th>
-                <th>Status</th>
-                <th style={{ minWidth: 190 }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredItems.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center text-muted py-4">
-                    No tools found.
-                  </td>
-                </tr>
-              ) : (
-                filteredItems.map((item) => {
-                  const imageUrl = item.image
-                    ? `${API_BASE}${item.image}`
-                    : null;
-
-                  const itemId = item.item_id;
-                  const qty = Number(item.quantity || 0);
-                  const available = Number(item.available_quantity ?? qty);
-
-                  return (
-                    <tr key={itemId}>
-                      <td>
-                        {imageUrl ? (
-                          <img
-                            src={imageUrl}
-                            alt={item.name}
-                            style={{
-                              width: 64,
-                              height: 64,
-                              objectFit: "cover",
-                              borderRadius: 8,
-                              border: "1px solid #dee2e6",
-                            }}
-                          />
-                        ) : (
-                          <div
-                            className="d-flex align-items-center justify-content-center text-muted"
-                            style={{
-                              width: 64,
-                              height: 64,
-                              borderRadius: 8,
-                              border: "1px solid #dee2e6",
-                              background: "#f8f9fa",
-                              fontSize: "0.8rem",
-                            }}
-                          >
-                            No image
-                          </div>
-                        )}
-                      </td>
-
-                      <td>
-                        <div className="fw-semibold">{item.name}</div>
-                        <div className="small text-muted text-truncate" style={{ maxWidth: 240 }}>
-                          {item.description || "No description"}
-                        </div>
-                      </td>
-
-                      <td>{item.category_name || "—"}</td>
-                      <td>{item.faculty_name || "—"}</td>
-                      <td>{qty}</td>
-
-                      <td>
-                        {available > 0 ? (
-                          <span className="badge bg-success">Available</span>
-                        ) : (
-                          <span className="badge bg-secondary">Unavailable</span>
-                        )}
-                      </td>
-
-                      <td>
-                        <div className="d-flex gap-2 flex-wrap">
-                          <button
-                            className="btn btn-outline-primary btn-sm"
-                            onClick={() => navigate(`/edit-item/${itemId}`)}
-                          >
-                            <i className="bi bi-pencil-square me-1"></i>
-                            Edit
-                          </button>
-
-                          <button
-                            className="btn btn-outline-danger btn-sm"
-                            disabled={!!busy[itemId]}
-                            onClick={() => handleDelete(itemId, item.name)}
-                          >
-                            <i className="bi bi-trash me-1"></i>
-                            {busy[itemId] ? "Deleting..." : "Delete"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-
-          <div className="small text-muted">
-            {filteredItems.length} of {items.length} tool(s) shown
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 // ══════════════════════════════════════════════════════════════════════════════
 // USERS SECTION
@@ -284,9 +40,11 @@ const UsersSection = ({ currentUserId }) => {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      setUsers(await adminService.getAllUsers());
+      const data = await adminService.getAllUsers();
+      setUsers(Array.isArray(data) ? data : []);
     } catch (err) {
       alert(err.message || "Failed to load users");
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -325,14 +83,14 @@ const UsersSection = ({ currentUserId }) => {
   };
 
   const filtered = users.filter((u) => {
-    const q = search.toLowerCase();
+    const q = search.trim().toLowerCase();
     return (
       !q ||
-      u.first_name?.toLowerCase().includes(q) ||
-      u.last_name?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q) ||
-      u.username?.toLowerCase().includes(q) ||
-      String(u.student_id || "").includes(q)
+      String(u.first_name || "").toLowerCase().includes(q) ||
+      String(u.last_name || "").toLowerCase().includes(q) ||
+      String(u.email || "").toLowerCase().includes(q) ||
+      String(u.username || "").toLowerCase().includes(q) ||
+      String(u.student_id || "").toLowerCase().includes(q)
     );
   });
 
@@ -343,7 +101,7 @@ const UsersSection = ({ currentUserId }) => {
         subtitle="View all registered users, change their roles, or remove them from the system."
       />
 
-      <div className="mb-3" style={{ maxWidth: 340 }}>
+      <div className="mb-3" style={{ maxWidth: 360 }}>
         <input
           className="form-control"
           placeholder="Search by name, email, username, ID..."
@@ -378,7 +136,7 @@ const UsersSection = ({ currentUserId }) => {
                 filtered.map((u) => {
                   const isSelf = u.user_id === currentUserId;
                   const name =
-                    `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.username;
+                    `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.username || "Unknown";
 
                   return (
                     <tr key={u.user_id}>
@@ -423,6 +181,7 @@ const UsersSection = ({ currentUserId }) => {
               )}
             </tbody>
           </table>
+
           <div className="small text-muted">
             {filtered.length} of {users.length} user(s) shown
           </div>
@@ -446,9 +205,11 @@ const CategoriesSection = () => {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      setCategories(await itemsService.getCategories());
+      const data = await itemsService.getCategories();
+      setCategories(Array.isArray(data) ? data : []);
     } catch (err) {
       alert(err.message || "Failed to load categories");
+      setCategories([]);
     } finally {
       setLoading(false);
     }
@@ -476,7 +237,13 @@ const CategoriesSection = () => {
   };
 
   const handleDelete = async (id, catName) => {
-    if (!confirmAction(`Delete category "${catName}"? Items in this category will become uncategorized.`)) return;
+    if (
+      !confirmAction(
+        `Delete category "${catName}"? Items in this category will become uncategorized.`
+      )
+    ) {
+      return;
+    }
 
     setBusy((b) => ({ ...b, [id]: true }));
     try {
@@ -496,7 +263,7 @@ const CategoriesSection = () => {
         subtitle="Add new equipment categories or remove ones that are no longer needed."
       />
 
-      <div className="card p-4 mb-4 shadow-sm" style={{ maxWidth: 480 }}>
+      <div className="card p-4 mb-4 shadow-sm" style={{ maxWidth: 520 }}>
         <h6 className="fw-bold mb-3">Add New Category</h6>
         <form onSubmit={handleAdd}>
           <div className="mb-3">
@@ -533,12 +300,13 @@ const CategoriesSection = () => {
       </div>
 
       <h6 className="fw-bold mb-3">Existing Categories</h6>
+
       {loading ? (
         <div className="text-muted">Loading...</div>
       ) : categories.length === 0 ? (
         <div className="text-muted">No categories yet.</div>
       ) : (
-        <div className="table-responsive" style={{ maxWidth: 640 }}>
+        <div className="table-responsive">
           <table className="table table-hover align-middle">
             <thead className="table-light">
               <tr>
@@ -587,9 +355,11 @@ const FacultiesSection = () => {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      setFaculties(await adminService.getFaculties());
+      const data = await adminService.getFaculties();
+      setFaculties(Array.isArray(data) ? data : []);
     } catch (err) {
       alert(err.message || "Failed to load faculties");
+      setFaculties([]);
     } finally {
       setLoading(false);
     }
@@ -637,7 +407,7 @@ const FacultiesSection = () => {
         subtitle="Add or remove faculties/departments. Items are associated with a faculty."
       />
 
-      <div className="card p-4 mb-4 shadow-sm" style={{ maxWidth: 480 }}>
+      <div className="card p-4 mb-4 shadow-sm" style={{ maxWidth: 520 }}>
         <h6 className="fw-bold mb-3">Add New Faculty</h6>
         <form onSubmit={handleAdd}>
           <div className="mb-3">
@@ -674,12 +444,13 @@ const FacultiesSection = () => {
       </div>
 
       <h6 className="fw-bold mb-3">Existing Faculties</h6>
+
       {loading ? (
         <div className="text-muted">Loading...</div>
       ) : faculties.length === 0 ? (
         <div className="text-muted">No faculties yet.</div>
       ) : (
-        <div className="table-responsive" style={{ maxWidth: 640 }}>
+        <div className="table-responsive">
           <table className="table table-hover align-middle">
             <thead className="table-light">
               <tr>
@@ -719,7 +490,7 @@ const FacultiesSection = () => {
 // ══════════════════════════════════════════════════════════════════════════════
 const AdminPanel = () => {
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState("tools");
+  const [activeSection, setActiveSection] = useState("users");
 
   const user = (() => {
     try {
@@ -737,10 +508,15 @@ const AdminPanel = () => {
   }, [user, navigate]);
 
   const renderContent = () => {
-    if (activeSection === "tools") return <ToolsSection />;
-    if (activeSection === "users") return <UsersSection currentUserId={user?.user_id} />;
-    if (activeSection === "categories") return <CategoriesSection />;
-    if (activeSection === "faculties") return <FacultiesSection />;
+    if (activeSection === "users") {
+      return <UsersSection currentUserId={user?.user_id} />;
+    }
+    if (activeSection === "categories") {
+      return <CategoriesSection />;
+    }
+    if (activeSection === "faculties") {
+      return <FacultiesSection />;
+    }
     return null;
   };
 
@@ -751,8 +527,8 @@ const AdminPanel = () => {
         <div
           className="d-flex flex-column py-4 px-3"
           style={{
-            width: 240,
-            minWidth: 240,
+            width: 250,
+            minWidth: 250,
             borderRight: "1px solid rgba(0,0,0,0.08)",
             background: "#f8f9fa",
           }}
@@ -783,7 +559,7 @@ const AdminPanel = () => {
                 style={{
                   borderRadius: 10,
                   padding: "10px 14px",
-                  fontSize: "0.92rem",
+                  fontSize: "0.95rem",
                   background: activeSection === s.key ? "#007847" : "transparent",
                   color: activeSection === s.key ? "#fff" : "#343a40",
                   border: "none",
@@ -798,7 +574,12 @@ const AdminPanel = () => {
         </div>
 
         {/* Content */}
-        <div className="flex-grow-1 px-5 py-4" style={{ maxWidth: 1100 }}>
+        <div
+          className="flex-grow-1 py-4 px-4"
+          style={{
+            minWidth: 0,
+          }}
+        >
           {renderContent()}
         </div>
       </div>

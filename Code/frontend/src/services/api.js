@@ -249,6 +249,52 @@ export const notificationsService = {
 
 // ===================== ADMIN SERVICE =====================
 export const adminService = {
+  // ================= USERS =================
+  getAllUsers: async () => {
+    const d = await apiRequest("/api/admin/users");
+    return d.users || [];
+  },
+
+  updateUserRole: (userId, role) =>
+    apiRequest(`/api/admin/users/${userId}/role`, {
+      method: "PUT",
+      body: JSON.stringify({ role }),
+    }),
+
+  deleteUser: (userId) =>
+    apiRequest(`/api/admin/users/${userId}`, {
+      method: "DELETE",
+    }),
+
+  // ================= CATEGORIES =================
+  createCategory: (name, description) =>
+    apiRequest("/api/admin/categories", {
+      method: "POST",
+      body: JSON.stringify({ name, description }),
+    }),
+
+  deleteCategory: (categoryId) =>
+    apiRequest(`/api/admin/categories/${categoryId}`, {
+      method: "DELETE",
+    }),
+
+  // ================= FACULTIES =================
+  getFaculties: async () => {
+    const d = await apiRequest("/api/admin/faculties");
+    return d.faculties || [];
+  },
+
+  createFaculty: (name, description) =>
+    apiRequest("/api/admin/faculties", {
+      method: "POST",
+      body: JSON.stringify({ name, description }),
+    }),
+
+  deleteFaculty: (facultyId) =>
+    apiRequest(`/api/admin/faculties/${facultyId}`, {
+      method: "DELETE",
+    }),
+
   getAllRequests: async ({ q = "", status = "", start = "", end = "" } = {}) => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
