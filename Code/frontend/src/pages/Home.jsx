@@ -367,9 +367,12 @@ const Home = () => {
     navigate("/cart");
   };
 
+  const [loadError, setLoadError] = useState("");
+
   const loadData = async () => {
     try {
       setLoading(true);
+      setLoadError("");
 
       const items = await itemsService.getItems();
       setAllItems(safeArr(items));
@@ -402,7 +405,9 @@ const Home = () => {
       setIncomingRequests([]);
       setAdminRequests([]);
       setReports({ statusCounts: [], topTools: [], topBorrowers: [] });
-    } catch {
+    } catch (err) {
+      console.error("Dashboard load error:", err);
+      setLoadError("Failed to load dashboard data. Please refresh the page.");
       setAllItems([]);
       setMyRequests([]);
       setIncomingRequests([]);
@@ -579,9 +584,21 @@ const Home = () => {
         </div>
       </div>
 
-      {loading ? (
-        <div className="text-center py-5">Loading dashboard...</div>
-      ) : isAdmin ? (
+     {loadError && (
+      <div className="alert alert-danger d-flex align-items-center justify-content-between mb-3">
+        <span><i className="bi bi-exclamation-triangle me-2"></i>{loadError}</span>
+        <button
+          className="btn btn-sm btn-outline-danger"
+          onClick={loadData}
+        >
+          Retry
+        </button>
+      </div>
+    )}
+
+    {loading ? (
+      <div className="text-center py-5">Loading dashboard...</div>
+    ) : isAdmin ? (
         <>
           <div className="row g-3 mb-4">
             <div className="col-12 col-lg-6">
