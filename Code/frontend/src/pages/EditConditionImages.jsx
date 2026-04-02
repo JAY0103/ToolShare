@@ -147,7 +147,7 @@ const EditConditionImages = () => {
     const path = image?.image_url || image?.filename || image;
 
     if (typeof path === "string" && path.startsWith("http")) return path;
-    return `${API_BASE}${path}`;
+	  return `${API_BASE}/uploads/conditionimages/${image_url}`;
   };
 
   const renderImageGrid = (list, emptyText, keyPrefix) => {
