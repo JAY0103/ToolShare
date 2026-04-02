@@ -7,14 +7,12 @@ const Signup = () => {
     username: '', email: '', password: '', 
   });
   const[loading, setLoading] = useState(false);
-  const[error, setError] = useState('');
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
     try {
       const res = await authService.register(formData);
       localStorage.setItem('token', res.token);
@@ -38,10 +36,6 @@ const Signup = () => {
           <input name="username" placeholder="Username" className="form-control mb-3" onChange={handleChange} required />
           <input name="email" placeholder="Email" type="email" className="form-control mb-3" onChange={handleChange} required />
           <input name="password" placeholder="Password" type="password" className="form-control mb-3" onChange={handleChange} required />
-          <div className="mb-3">
-            <label><input type="radio" name="user_type" value="student" onChange={handleChange} defaultChecked /> Student</label> &nbsp;
-            <label><input type="radio" name="user_type" value="faculty" onChange={handleChange} /> Faculty</label>
-          </div>
           <button type="submit" className="btn btn-success w-100 btn-success">Sign Up</button>
         </form>
         <p className="text-center mt-3">Have account? <a href="/login">Login</a></p>
