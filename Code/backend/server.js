@@ -904,22 +904,28 @@ app.post(
 );
 
 //Get all condition images for a borrow request
+
 app.get("/api/borrowrequest/:id/condition-images", authenticateToken, async (req, res) => {
   const borrow_request_id = Number(req.params.id);
-  if (!borrow_request_id) return res.status(400).json({ error: "Invalid borrow request ID" });
+  if (!borrow_request_id) {
+    return res.status(400).json({ error: "Invalid borrow request ID" });
+  }
 
   try {
-	 const images = await query(
-	  `SELECT image_id AS id,
-          CONCAT('/uploads/condition-images/', filename) AS image_url,
-          image_type,
-          \`timestamp\`
-	   FROM conditionimages
-	   WHERE borrow_request_id = ?
-	   ORDER BY \`timestamp\` ASC`,
-	  [borrow_request_id]
-	);
+    console.log("Borrow request ID:", borrow_request_id);
 
+    const sql = `
+      SELECT 
+        id,
+        CONCAT('/uploads/condition-images/', filename) AS image_url,
+        image_type,
+        created_at
+      FROM conditionimages
+      WHERE borrow_request_id = ${borrow_request_id}
+      ORDER BY created_at ASC
+    `;
+
+    const [images] = await query(sql);
 
     res.json({ images });
   } catch (err) {
@@ -927,7 +933,6 @@ app.get("/api/borrowrequest/:id/condition-images", authenticateToken, async (req
     res.status(500).json({ error: "Server error" });
   }
 });
-
 
 // -------------------- Condition Images --------------------
 // GET all condition images for an item
