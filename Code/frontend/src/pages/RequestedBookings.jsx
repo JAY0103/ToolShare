@@ -1,8 +1,11 @@
 // src/pages/RequestedBookings.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { bookingsService, API_BASE } from "../services/api";
 
 const RequestedBookings = () => {
+  const navigate = useNavigate();
+
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const userType = String(user?.user_type || "").toLowerCase();
 
@@ -84,7 +87,7 @@ const RequestedBookings = () => {
   };
 
   const badgeClassForStatus = (status) => {
-    const s = String(status || "").toLowerCase();
+    const s = String(status || "").toLowerCase().trim();
 
     if (s === "approved") return "bg-success";
     if (s === "pending") return "bg-warning text-dark";
@@ -107,14 +110,11 @@ const RequestedBookings = () => {
     return s;
   };
 
-  // filter only by selected status and sort by most recent requested_start, then created_at, then updated_at
   const filteredRequests = useMemo(() => {
     return (requests || [])
       .filter((r) => {
         const status = normalizeStatus(r.status || "pending");
-
-        if (statusFilter === "all") return true;
-        return status === statusFilter;
+        return statusFilter === "all" ? true : status === statusFilter;
       })
       .sort((a, b) => {
         const aT = new Date(a.requested_start || a.created_at || a.updated_at || 0).getTime();
@@ -129,6 +129,17 @@ const RequestedBookings = () => {
     if (value === "cancelled") return "Cancelled Requests";
     return `${value.charAt(0).toUpperCase() + value.slice(1)} Requests`;
   };
+
+  const filterOptions = [
+    { value: "all", label: "All" },
+    { value: "pending", label: "Pending" },
+    { value: "approved", label: "Approved" },
+    { value: "checkedout", label: "Checked Out" },
+    { value: "returned", label: "Returned" },
+    { value: "overdue", label: "Overdue" },
+    { value: "rejected", label: "Rejected" },
+    { value: "cancelled", label: "Cancelled" },
+  ];
 
   if (!canViewIncoming) {
     return (
@@ -159,29 +170,23 @@ const RequestedBookings = () => {
         </button>
       </div>
 
-      {/* Status Filter Buttons */}
-      <div className="mb-4 d-flex gap-2 flex-wrap">
-        {[
-          { value: "all", label: "All" },
-          { value: "pending", label: "Pending" },
-          { value: "approved", label: "Approved" },
-          { value: "checkedout", label: "Checked Out" },
-          { value: "returned", label: "Returned" },
-          { value: "overdue", label: "Overdue" },
-          { value: "rejected", label: "Rejected" },
-          { value: "cancelled", label: "Cancelled" },
-        ].map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            className={`btn btn-sm ${
-              statusFilter === item.value ? "btn-dark" : "btn-outline-dark"
-            }`}
-            onClick={() => setStatusFilter(item.value)}
-          >
-            {item.label}
-          </button>
-        ))}
+      {/* Uniform filter buttons */}
+      <div className="mb-4">
+        <div className="row g-2">
+          {filterOptions.map((item) => (
+            <div key={item.value} className="col-6 col-md-3 col-lg-2">
+              <button
+                type="button"
+                className={`btn w-100 ${
+                  statusFilter === item.value ? "btn-dark" : "btn-outline-dark"
+                }`}
+                onClick={() => setStatusFilter(item.value)}
+              >
+                {item.label}
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {filteredRequests.length === 0 ? (
@@ -258,7 +263,6 @@ const RequestedBookings = () => {
                       </p>
                     )}
 
-                    {/* Rejection textarea */}
                     {status === "pending" && rejectingId === req.request_id && (
                       <div className="mb-2">
                         <label className="form-label mb-1">
@@ -282,14 +286,12 @@ const RequestedBookings = () => {
                       </div>
                     )}
 
-                    {/* Note from server */}
                     {status !== "pending" && noteFromServer && (
                       <div className="alert alert-info py-2 mt-2 mb-2">
                         <strong>Message to requester:</strong> {noteFromServer}
                       </div>
                     )}
 
-                    {/* Actions */}
                     <div className="mt-auto d-flex gap-2">
                       {status === "pending" ? (
                         rejectingId === req.request_id ? (
@@ -326,7 +328,12 @@ const RequestedBookings = () => {
                       ) : status === "approved" ? (
                         <button
                           onClick={() =>
-                            (window.location.href = `/edit-condition-images?item_id=${req.item_id}&request_id=${req.request_id}&type=checkout`)
+                            navigate("/edit-condition-images", {
+                              state: {
+                                requestId: req.request_id,
+                                mode: "checkout",
+                              },
+                            })
                           }
                           className="btn btn-primary btn-sm flex-fill"
                         >
@@ -335,7 +342,12 @@ const RequestedBookings = () => {
                       ) : status === "checkedout" || status === "overdue" ? (
                         <button
                           onClick={() =>
-                            (window.location.href = `/edit-condition-images?item_id=${req.item_id}&request_id=${req.request_id}&type=return`)
+                            navigate("/edit-condition-images", {
+                              state: {
+                                requestId: req.request_id,
+                                mode: "return",
+                              },
+                            })
                           }
                           className={`btn btn-sm flex-fill ${
                             status === "overdue" ? "btn-danger" : "btn-warning"
