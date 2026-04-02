@@ -1773,6 +1773,98 @@ app.use((err, req, res, next) => {
   return res.status(500).json({ error: "Server error" });
 });
 
+// -------------------- ADMIN: USERS --------------------
+app.get("/api/admin/users", authenticateToken, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Admin only" });
+  try {
+    const users = await query(
+      `SELECT user_id, first_name, last_name, username, email, student_id, user_type
+       FROM users ORDER BY user_id DESC`
+    );
+    res.json({ users });
+  } catch (err) {
+    console.error("admin get users error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.delete("/api/admin/users/:id", authenticateToken, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Admin only" });
+  const userId = Number(req.params.id);
+  if (!userId) return res.status(400).json({ error: "Invalid user id" });
+  if (userId === req.user.userId)
+    return res.status(400).json({ error: "Cannot delete your own account" });
+  try {
+    await query(`DELETE FROM users WHERE user_id = ?`, [userId]);
+    res.json({ message: "User deleted" });
+  } catch (err) {
+    console.error("admin delete user error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// -------------------- ADMIN: CATEGORIES --------------------
+app.delete("/api/admin/categories/:id", authenticateToken, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Admin only" });
+  const categoryId = Number(req.params.id);
+  if (!categoryId) return res.status(400).json({ error: "Invalid category id" });
+  try {
+    await query(`UPDATE items SET category_id = NULL WHERE category_id = ?`, [categoryId]);
+    await query(`DELETE FROM categories WHERE category_id = ?`, [categoryId]);
+    res.json({ message: "Category deleted" });
+  } catch (err) {
+    console.error("admin delete category error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// -------------------- ADMIN: FACULTIES --------------------
+app.get("/api/admin/faculties", authenticateToken, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Admin only" });
+  try {
+    const faculties = await query(`SELECT * FROM faculties ORDER BY faculty_id ASC`);
+    res.json({ faculties });
+  } catch (err) {
+    console.error("admin get faculties error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.post("/api/admin/faculties", authenticateToken, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Admin only" });
+  const { name, description } = req.body;
+  if (!name || !String(name).trim())
+    return res.status(400).json({ error: "Faculty name is required." });
+  try {
+    await query(
+      `INSERT INTO faculties (name, description) VALUES (?, ?)`,
+      [String(name).trim(), description || null]
+    );
+    res.json({ message: "Faculty created" });
+  } catch (err) {
+    if (err?.code === "ER_DUP_ENTRY")
+      return res.status(409).json({ error: "Faculty already exists." });
+    console.error("admin create faculty error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.delete("/api/admin/faculties/:id", authenticateToken, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Admin only" });
+  const facultyId = Number(req.params.id);
+  if (!facultyId) return res.status(400).json({ error: "Invalid faculty id" });
+  if (facultyId === 1)
+    return res.status(400).json({ error: "Cannot delete the default General faculty." });
+  try {
+    await query(`UPDATE items SET faculty_id = 1 WHERE faculty_id = ?`, [facultyId]);
+    await query(`DELETE FROM faculties WHERE faculty_id = ?`, [facultyId]);
+    res.json({ message: "Faculty deleted" });
+  } catch (err) {
+    console.error("admin delete faculty error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // -------------------- Start Server --------------------
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on http://54.85.60.202:${PORT}`);
