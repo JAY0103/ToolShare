@@ -692,34 +692,55 @@ app.put("/api/edit-item", authenticateToken, async (req, res) => {
 
 // -------------------- BORROW / BOOKINGS --------------------
 
+
 app.post("/api/book-item", authenticateToken, async (req, res) => {
   const { item_id, requested_start, requested_end, reason } = req.body;
   const borrower_id = req.user.userId;
 
+  // --- Basic validation ---
   if (!item_id || !requested_start || !requested_end || !reason) {
     return res.status(400).json({ error: "All fields are required." });
   }
 
   const start = new Date(requested_start);
   const end = new Date(requested_end);
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return res.status(400).json({ error: "Invalid date format." });
-  if (end <= start) return res.status(400).json({ error: "End time must be after start time." });
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return res.status(400).json({ error: "Invalid date format." });
+  }
+
+  if (end <= start) {
+    return res.status(400).json({ error: "End time must be after start time." });
+  }
 
   try {
+    // --- Auto mark overdue requests ---
     await autoMarkOverdue();
 
-    //fetch category_id
+    // --- Fetch item category ---
     const itemRows = await query(
       `SELECT category_id FROM items WHERE item_id = ? LIMIT 1`,
       [item_id]
     );
+
     if (!itemRows.length) {
       return res.status(404).json({ error: "Item not found" });
     }
 
     const category_id = itemRows[0].category_id;
-    const status = category_id === 4 ? "Approved" : "Pending";
 
+    // --- Fetch "Bulk Items" category ID dynamically ---
+    const bulkRows = await query(
+      `SELECT category_id FROM categories WHERE name = ? LIMIT 1`,
+      ["Bulk Items"]
+    );
+
+    const bulkCategoryId = bulkRows.length ? bulkRows[0].category_id : null;
+
+    // --- Determine booking status ---
+    const status = category_id === bulkCategoryId ? "Approved" : "Pending";
+
+    // --- Check for conflicts ---
     const conflicts = await query(
       `
       SELECT 1
@@ -737,54 +758,27 @@ app.post("/api/book-item", authenticateToken, async (req, res) => {
       return res.status(409).json({ error: "This item is already booked for the selected time range." });
     }
 
-    //Enforce booking limit
-    const activeCountRows = await query(
+    // --- Insert new booking ---
+    const insertResult = await query(
       `
-      SELECT COUNT(*) AS count
-      FROM borrowrequests
-      WHERE borrower_id = ?
-        AND status IN ('Pending','Approved','CheckedOut','Overdue')
+      INSERT INTO borrowrequests
+        (item_id, borrower_id, requested_start, requested_end, reason, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, NOW())
       `,
-      [borrower_id]
+      [item_id, borrower_id, requested_start, requested_end, reason, status]
     );
 
-    if (activeCountRows[0].count >= 5) {
-      return res.status(403).json({ error: "You have reached your booking limit." });
-    }
+    res.status(201).json({
+      message: `Booking ${status === "Approved" ? "approved" : "submitted"} successfully!`,
+      bookingId: insertResult.insertId,
+      status,
+    });
 
-    const result = await query(
-      `INSERT INTO borrowrequests (borrower_id, item_id, requested_start, requested_end, reason, status, request_group_id)
-       VALUES (?, ?, ?, ?, ?, ?, NULL)`,
-      [borrower_id, item_id, requested_start, requested_end, reason, status]
-    );
-
-    const metaRows = await query(
-      `
-      SELECT i.owner_id, i.name AS item_name,
-             u.first_name, u.last_name, u.username
-      FROM items i
-      JOIN users u ON u.user_id = ?
-      WHERE i.item_id = ?
-      LIMIT 1
-      `,
-      [borrower_id, item_id]
-    );
-
-    if (metaRows.length > 0) {
-      const m = metaRows[0];
-      const borrowerName = `${m.first_name || ""} ${m.last_name || ""}`.trim() || m.username || "A student";
-      createNotification(m.owner_id, "New borrow request", `${borrowerName} requested "${m.item_name}".`, "request").catch(err => {
-        console.error("Notification failed:", err);
-      });
-    }
-
-    res.json({ message: "Borrow request submitted successfully", request_id: result.insertId });
   } catch (err) {
-    console.error("book-item error:", err);
+    console.error("Booking error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
-
 
 app.post("/api/request-group", authenticateToken, async (req, res) => {
   const borrower_id = req.user.userId;
