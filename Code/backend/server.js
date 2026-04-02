@@ -112,6 +112,52 @@ Thank you for using ToolShare.`,
   });
 }
 
+async function sendOverdueEmail(toEmail, itemName) {
+  if (!toEmail) return;
+
+  await mailer.sendMail({
+    from: `"ToolShare" <${GMAIL_USER}>`,
+    to: toEmail,
+    subject: "ToolShare: Item Overdue",
+    text: `Hello,
+
+Your ToolShare booking for ${itemName} is now overdue. Please return it as soon as possible.
+
+Failure to return items may result in penalties.
+
+Thank you for using ToolShare.`,
+
+    html: `
+      <p>Hello,</p>
+      <p>Your ToolShare booking for <strong>${itemName}</strong> is now <b style="color:red">overdue</b>.</p>
+      <p>Please return it as soon as possible. Failure to return items may result in penalties.</p>
+      <p>Thank you for using ToolShare.</p>
+    `
+  });
+}
+
+async function sendCheckedOutEmail(toEmail, itemName) {
+  if (!toEmail) return;
+
+  await mailer.sendMail({
+    from: `"ToolShare" <${GMAIL_USER}>`,
+    to: toEmail,
+    subject: "ToolShare: Item Checked Out",
+    text: `Hello,
+
+Your ToolShare booking for ${itemName} has been checked out. Please ensure you return it by the agreed end date.
+
+Thank you for using ToolShare.`,
+
+    html: `
+      <p>Hello,</p>
+      <p>Your ToolShare booking for <strong>${itemName}</strong> has been <b>checked out</b>.</p>
+      <p>Please ensure you return it by the agreed end date.</p>
+      <p>Thank you for using ToolShare.</p>
+    `
+  });
+}
+
 // Serve uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
@@ -228,12 +274,38 @@ const createNotification = async (user_id, title, message, type = "info") => {
 
 // -------------------- Overdue Auto Mark --------------------
 const autoMarkOverdue = async () => {
+  // Find the requests that WILL become overdue before updating
+  const toBeOverdue = await query(`
+    SELECT br.request_id, br.borrower_id,
+           i.name AS item_name,
+           u.email AS borrower_email
+    FROM borrowrequests br
+    JOIN items i ON br.item_id = i.item_id
+    JOIN users u ON br.borrower_id = u.user_id
+    WHERE br.status = 'CheckedOut'
+      AND br.requested_end < NOW()
+  `);
+
+  // Mark them overdue
   await query(`
     UPDATE borrowrequests
     SET status = 'Overdue'
     WHERE status = 'CheckedOut'
       AND requested_end < NOW()
   `);
+
+  // Send notifications and emails for each newly overdue request
+  for (const r of toBeOverdue) {
+    createNotification(
+      r.borrower_id,
+      "Item overdue",
+      `Your booking for "${r.item_name}" is overdue. Please return it immediately.`,
+      "overdue"
+    ).catch(err => console.error("Overdue notification failed:", err));
+
+    sendOverdueEmail(r.borrower_email, r.item_name)
+      .catch(err => console.error("Overdue email failed:", err));
+  }
 };
 
 // -------------------- Routes --------------------
@@ -574,7 +646,7 @@ app.put("/api/edit-item", authenticateToken, async (req, res) => {
   if (!item_id || !name) return res.status(400).json({ error: "Item ID and name are required." });
 
   try {
-    // Check permissions: admin can edit anything, users can edit their own items
+    // Check permissions: admin can edit anything, tool owners can edit their own items
     if (!isAdmin(req)) {
       const rows = await query(
         `SELECT item_id FROM items WHERE item_id = ? AND owner_id = ? LIMIT 1`,
@@ -1497,9 +1569,18 @@ app.put("/api/request-checkout", authenticateToken, async (req, res) => {
       "Item checked out",
       `Your booking for "${r.item_name}" has been checked out.`,
       "checkedout"
-    ).catch(err => {
-    console.error("Notification failed:", err);
-  });
+    ).catch(err => console.error("Notification failed:", err));
+
+    // Get borrower email for checkout notification
+    query(
+      `SELECT u.email FROM users u WHERE u.user_id = ?`,
+      [r.borrower_id]
+    ).then(rows => {
+      if (rows[0]?.email) {
+        sendCheckedOutEmail(rows[0].email, r.item_name)
+          .catch(err => console.error("Checkout email failed:", err));
+      }
+    }).catch(err => console.error("Checkout email query failed:", err));
 
     res.json({ message: "Checked out successfully" });
   } catch (err) {
