@@ -1,14 +1,14 @@
 // src/pages/EditConditionImages.jsx
 import React, { useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { itemsService, bookingsService, API_BASE } from "../services/api";
 
 const EditConditionImages = () => {
-  const [searchParams] = useSearchParams();
-  const itemId = searchParams.get("item_id");
-  const requestId = searchParams.get("request_id");
-  const type = searchParams.get("type"); // "checkout" or "return"
+  const location = useLocation();
   const navigate = useNavigate();
+
+  const requestId = location.state?.requestId;
+  const type = location.state?.mode; // "checkout" or "return"
 
   const [loading, setLoading] = useState(true);
   const [images, setImages] = useState([]);
@@ -16,10 +16,10 @@ const EditConditionImages = () => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
-  // Fetch existing condition images for this borrow request
+  // ---------------- LOAD IMAGES ----------------
   useEffect(() => {
     if (!requestId) {
-      alert("Invalid borrow request");
+      alert("Invalid request. Please try again.");
       navigate("/home");
       return;
     }
@@ -28,7 +28,7 @@ const EditConditionImages = () => {
       try {
         setLoading(true);
         const res = await itemsService.getBorrowRequestConditionImages(requestId);
-        setImages(res); // res is an array of images from the server
+        setImages(res);
       } catch (err) {
         console.error(err);
         alert("Failed to load condition images");
@@ -41,15 +41,15 @@ const EditConditionImages = () => {
     fetchImages();
   }, [requestId, navigate]);
 
-  // Handle file selection
+  // ---------------- FILE SELECT ----------------
   const handleChange = (e) => {
-    const { files } = e.target;
-    if (files && files.length > 0) {
-      setFormData({ image: files[0] });
+    const file = e.target.files?.[0];
+    if (file) {
+      setFormData({ image: file });
     }
   };
 
-  // Handle uploading a new image
+  // ---------------- UPLOAD + ACTION ----------------
   const handleUpload = async () => {
     if (!formData.image) {
       setError("Please select an image first.");
@@ -64,13 +64,14 @@ const EditConditionImages = () => {
       data.append("image", formData.image);
       data.append("image_type", type === "checkout" ? "Before" : "After");
 
-      // Upload image for this borrow request
+      // Upload image
       const res = await itemsService.uploadConditionImage(requestId, data);
-      const newImg = res.image_url || res.filename; // handle both server responses
+
+      const newImg = res.image_url || res.filename;
       setImages((prev) => [...prev, newImg]);
       setFormData({ image: null });
 
-      // Trigger checkout / return if needed
+      // THEN perform action
       if (type === "checkout") {
         await bookingsService.checkoutRequest(requestId);
         alert("Checked out successfully!");
@@ -79,7 +80,9 @@ const EditConditionImages = () => {
         alert("Returned successfully!");
       }
 
-      navigate("/requested-bookings");
+      // Redirect
+      navigate("/home");
+
     } catch (err) {
       console.error(err);
       setError("Upload failed. Must be JPEG, PNG, or WebP under 5MB.");
@@ -88,7 +91,7 @@ const EditConditionImages = () => {
     }
   };
 
-  // Get proper image URL
+  // ---------------- IMAGE URL ----------------
   const getImageSrc = (image) => {
     if (!image) return "https://via.placeholder.com/150?text=No+Image";
     if (image.startsWith("http")) return image;
@@ -99,15 +102,24 @@ const EditConditionImages = () => {
 
   return (
     <div className="container-fluid px-4 py-4">
-      <h2 className="fw-bold mb-4">Edit Condition Images</h2>
+      <h2 className="fw-bold mb-2">
+        {type === "checkout" ? "Checkout Condition Images" : "Return Condition Images"}
+      </h2>
 
-      {/* Current images */}
+      <div className="text-muted mb-4">
+        {type === "checkout"
+          ? "Upload images BEFORE giving the item."
+          : "Upload images AFTER receiving the item."}
+      </div>
+
+      {/* EXISTING IMAGES */}
       <div className="row g-4 mb-4">
         {images.length === 0 && (
           <div className="col-12">
             <div className="alert alert-info">No condition images yet.</div>
           </div>
         )}
+
         {images.map((img, idx) => (
           <div className="col-md-3" key={idx}>
             <div className="card shadow">
@@ -125,10 +137,6 @@ const EditConditionImages = () => {
                   src={getImageSrc(img.image_url || img.filename)}
                   alt={`Condition ${idx + 1}`}
                   style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "cover" }}
-                  onError={(e) =>
-                    (e.currentTarget.src =
-                      "https://via.placeholder.com/150?text=Image+Not+Found")
-                  }
                 />
               </div>
             </div>
@@ -136,38 +144,38 @@ const EditConditionImages = () => {
         ))}
       </div>
 
-      {/* Upload card */}
+      {/* UPLOAD CARD */}
       <div className="card shadow p-4" style={{ maxWidth: "400px" }}>
-        <h5 className="fw-bold mb-3">Upload New Condition Image</h5>
+        <h5 className="fw-bold mb-3">Upload Image</h5>
+
         {error && <div className="alert alert-danger">{error}</div>}
-        <div className="mb-3">
-          <input
-            type="file"
-            name="image"
-            accept="image/*"
-            onChange={handleChange}
-            key={formData.image ? formData.image.name : ""}
-          />
-        </div>
+
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleChange}
+          className="mb-3"
+        />
+
         <div className="d-flex gap-2">
           <button
-            type="button"
             className="btn btn-success fw-bold"
             onClick={handleUpload}
-            disabled={uploading || !formData.image}
+            disabled={uploading}
           >
-            {uploading ? "Uploading..." : "Upload"}
+            {uploading ? "Uploading..." : "Upload & Continue"}
           </button>
+
           <button
-            type="button"
             className="btn btn-secondary fw-bold"
             onClick={() => navigate("/home")}
           >
             Cancel
           </button>
         </div>
+
         <div className="mt-2 text-muted small">
-          Allowed: JPEG, PNG, WebP. Max size: 5MB.
+          Allowed: JPEG, PNG, WebP (max 5MB)
         </div>
       </div>
     </div>

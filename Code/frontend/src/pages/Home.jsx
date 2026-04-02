@@ -1,4 +1,3 @@
-// src/pages/Home.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { itemsService, bookingsService, adminService, API_BASE } from "../services/api";
@@ -17,11 +16,9 @@ const Home = () => {
   const [allItems, setAllItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // student bookings OR faculty incoming requests
   const [myRequests, setMyRequests] = useState([]);
   const [incomingRequests, setIncomingRequests] = useState([]);
 
-  // admin-only data
   const [adminRequests, setAdminRequests] = useState([]);
   const [reports, setReports] = useState({
     statusCounts: [],
@@ -29,14 +26,12 @@ const Home = () => {
     topBorrowers: [],
   });
 
-  // kept for compatibility (admin filters)
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
 
-  // local action loading map
-  const [actionBusy, setActionBusy] = useState({}); // { [request_id]: true }
+  const [actionBusy, setActionBusy] = useState({});
 
   const getImageSrc = (image_url) => {
     if (!image_url) return "https://via.placeholder.com/400x250?text=ToolShare";
@@ -44,7 +39,6 @@ const Home = () => {
     return `${API_BASE}${image_url}`;
   };
 
-  // ----------- tiny helpers -----------
   const safeArr = (x) => (Array.isArray(x) ? x : []);
   const setBusy = (id, val) => setActionBusy((prev) => ({ ...prev, [id]: val }));
 
@@ -57,11 +51,9 @@ const Home = () => {
     }
   };
 
-  // normalize status once, use everywhere
   const normStatus = (s) => String(s || "").toLowerCase().replace(/\s+/g, "");
   const isStatus = (s, target) => normStatus(s) === normStatus(target);
 
-  // Robust status getter (handles different backend field names)
   const getStatusValue = (r) =>
     r?.status ??
     r?.booking_status ??
@@ -70,7 +62,6 @@ const Home = () => {
     r?.requestStatus ??
     "";
 
-  // student-friendly labels
   const displayStatus = (s) => {
     const v = normStatus(s);
     if (v === "pending") return "Requested";
@@ -95,7 +86,6 @@ const Home = () => {
     return "bg-dark";
   };
 
-  // DATE HELPERS
   const startOfToday = () => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -120,7 +110,6 @@ const Home = () => {
     return t < Date.now();
   };
 
-  // Better created date helper
   const getRequestCreatedDate = (r) =>
     r?.created_at ||
     r?.createdAt ||
@@ -131,7 +120,6 @@ const Home = () => {
     r?.request_date ||
     null;
 
-  // ----------- API action resolver -----------
   const callStatusUpdate = async (requestId, nextStatus, extra = {}) => {
     const candidates = [
       adminService?.updateRequestStatus,
@@ -147,7 +135,7 @@ const Home = () => {
     ].filter(Boolean);
 
     if (candidates.length === 0) {
-      throw new Error("No status update method found. Add updateRequestStatus(requestId, status) to your service.");
+      throw new Error("No status update method found.");
     }
 
     const payload = {
@@ -189,7 +177,6 @@ const Home = () => {
     throw lastErr || new Error("Failed to update status");
   };
 
-  // ----------- cancel resolver (student) -----------
   const callCancelRequest = async (requestId) => {
     const candidates = [
       bookingsService?.cancelRequest,
@@ -203,7 +190,7 @@ const Home = () => {
     ].filter(Boolean);
 
     if (candidates.length === 0) {
-      throw new Error("No cancel method found. Add cancelRequest(requestId) in your service.");
+      throw new Error("No cancel method found.");
     }
 
     let lastErr;
@@ -229,7 +216,7 @@ const Home = () => {
       await callStatusUpdate(requestId, nextStatus, extra);
       await loadData();
     } catch (err) {
-      alert(err?.message || "Could not update status. Check your backend route/service method.");
+      alert(err?.message || "Could not update status.");
     } finally {
       setBusy(requestId, false);
     }
@@ -252,11 +239,29 @@ const Home = () => {
     });
   };
 
-  const goToConditionImages = (requestId) => {
+  // Checkout must go through image upload page first
+  const goToCheckoutImages = (requestId) => {
     if (!requestId) return;
 
     navigate(`/edit-condition-images/${requestId}`, {
-      state: { requestId, mode: "checkout", source: "home" },
+      state: {
+        requestId,
+        mode: "checkout",
+        source: "home",
+      },
+    });
+  };
+
+  // Return must also go through image upload page first
+  const goToReturnImages = (requestId) => {
+    if (!requestId) return;
+
+    navigate(`/edit-condition-images/${requestId}`, {
+      state: {
+        requestId,
+        mode: "return",
+        source: "home",
+      },
     });
   };
 
@@ -270,13 +275,12 @@ const Home = () => {
       await callCancelRequest(requestId);
       await loadData();
     } catch (err) {
-      alert(err?.message || "Could not cancel request. Check your backend route/service method.");
+      alert(err?.message || "Could not cancel request.");
     } finally {
       setBusy(requestId, false);
     }
   };
 
-  // ----------- CSV export (admin) -----------
   const exportRequestsCSV = (rows, filename = "toolshare_requests.csv") => {
     const data = safeArr(rows);
     if (!data.length) return alert("No data to export.");
@@ -315,7 +319,6 @@ const Home = () => {
     URL.revokeObjectURL(url);
   };
 
-  // ---------------- BASKET HELPERS (student only) ----------------
   const getCart = () => {
     try {
       const raw = localStorage.getItem(CART_KEY);
@@ -331,7 +334,6 @@ const Home = () => {
     window.dispatchEvent(new Event("cartUpdated"));
   };
 
-  // Add item to basket with extra fields to prevent request failures
   const addToCart = (item) => {
     const cart = getCart();
     const exists = cart.some((c) => Number(c.item_id) === Number(item.item_id));
@@ -365,7 +367,6 @@ const Home = () => {
     navigate("/basket");
   };
 
-  // ----------- load data -----------
   const loadData = async () => {
     try {
       setLoading(true);
@@ -417,7 +418,6 @@ const Home = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userType]);
 
-  // ---- Recommendation logic (student only)
   const recommendedItems = useMemo(() => {
     if (isStaff) return [];
 
@@ -459,14 +459,6 @@ const Home = () => {
 
   const displayedRecommended = recommendedItems;
 
-  // Admin summary map
-  const statusMap = useMemo(() => {
-    const m = new Map();
-    (reports.statusCounts || []).forEach((r) => m.set(r.status, Number(r.count || 0)));
-    return m;
-  }, [reports]);
-
-  // Student: MOST RECENT bookings
   const recentStudent = useMemo(() => {
     if (isStaff) return [];
     const arr = safeArr(myRequests).slice();
@@ -482,7 +474,6 @@ const Home = () => {
     return arr.slice(0, 3);
   }, [myRequests, isStaff]);
 
-  // FACULTY: today lists
   const todayPickups = useMemo(() => {
     if (!isFaculty) return [];
     const arr = safeArr(incomingRequests);
@@ -504,8 +495,6 @@ const Home = () => {
       .sort((a, b) => new Date(a.requested_end) - new Date(b.requested_end));
   }, [incomingRequests, isFaculty]);
 
-  // Faculty recent incoming (pending)
-  // Removed the 24h cutoff so older pending requests are still visible.
   const facultyRecentIncoming = useMemo(() => {
     if (!isFaculty) return [];
     const arr = safeArr(incomingRequests);
@@ -520,18 +509,7 @@ const Home = () => {
       .slice(0, 10);
   }, [incomingRequests, isFaculty]);
 
-  // ADMIN lists
-  const adminRequestsToday = useMemo(() => {
-    if (!isAdmin) return [];
-    const arr = safeArr(adminRequests);
-    return arr.filter((r) => {
-      const created = getRequestCreatedDate(r);
-      if (created) return isWithinToday(created);
-      return isWithinToday(r.requested_start);
-    });
-  }, [adminRequests, isAdmin]);
-
-  const adminPending = useMemo(() => {
+  const adminPendingAll = useMemo(() => {
     if (!isAdmin) return [];
     const arr = safeArr(adminRequests);
     return arr
@@ -540,11 +518,12 @@ const Home = () => {
         const da = new Date(getRequestCreatedDate(a) || a.requested_start || 0).getTime();
         const db = new Date(getRequestCreatedDate(b) || b.requested_start || 0).getTime();
         return db - da;
-      })
-      .slice(0, 10);
+      });
   }, [adminRequests, isAdmin]);
 
-  const adminOverdue = useMemo(() => {
+  const adminPending = useMemo(() => adminPendingAll.slice(0, 5), [adminPendingAll]);
+
+  const adminOverdueAll = useMemo(() => {
     if (!isAdmin) return [];
     const arr = safeArr(adminRequests);
 
@@ -556,10 +535,12 @@ const Home = () => {
       return r.requested_end ? isPast(r.requested_end) : false;
     });
 
-    return list
-      .sort((a, b) => new Date(a.requested_end || 0).getTime() - new Date(b.requested_end || 0).getTime())
-      .slice(0, 10);
+    return list.sort(
+      (a, b) => new Date(a.requested_end || 0).getTime() - new Date(b.requested_end || 0).getTime()
+    );
   }, [adminRequests, isAdmin]);
+
+  const adminOverdue = useMemo(() => adminOverdueAll.slice(0, 5), [adminOverdueAll]);
 
   const adminPickupsToday = useMemo(() => {
     if (!isAdmin) return [];
@@ -584,7 +565,6 @@ const Home = () => {
       .slice(0, 10);
   }, [adminRequests, isAdmin]);
 
-  // ---- render ----
   return (
     <div className="container-fluid px-4 py-4">
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
@@ -603,75 +583,26 @@ const Home = () => {
         <div className="text-center py-5">Loading dashboard...</div>
       ) : isAdmin ? (
         <>
-          {/* ================== ADMIN: KPI CARDS ================== */}
           <div className="row g-3 mb-4">
-            <div className="col-12 col-md-4 col-lg-3">
-              <div className="card p-3 shadow-sm h-100" style={{ cursor: "pointer" }} onClick={() => navigate("/items")}>
-                <div className="text-muted fw-bold">Total Tools</div>
-                <div className="fs-3 fw-bold">{allItems.length}</div>
-              </div>
-            </div>
-
-            <div className="col-6 col-md-4 col-lg-3">
-              <div
-                className="card p-3 shadow-sm h-100"
-                style={{ cursor: "pointer" }}
-                onClick={() => navigate("/requested-bookings")}
-              >
-                <div className="text-muted fw-bold">Requests Today</div>
-                <div className="fs-3 fw-bold">{adminRequestsToday.length}</div>
-              </div>
-            </div>
-
-            <div className="col-6 col-md-4 col-lg-3">
-              <div
-                className="card p-3 shadow-sm h-100"
-                style={{ cursor: "pointer" }}
-                onClick={() => navigate("/requested-bookings")}
-              >
-                <div className="text-muted fw-bold">Pending Approvals</div>
-                <div className="fs-3 fw-bold">{statusMap.get("Pending") || statusMap.get("pending") || 0}</div>
-              </div>
-            </div>
-
-            <div className="col-6 col-md-4 col-lg-3">
-              <div
-                className="card p-3 shadow-sm h-100"
-                style={{ cursor: "pointer" }}
-                onClick={() => navigate("/owner-booking-history")}
-              >
-                <div className="text-muted fw-bold">Active Checkouts</div>
-                <div className="fs-3 fw-bold">
-                  {statusMap.get("CheckedOut") || statusMap.get("Checked Out") || statusMap.get("checkedout") || 0}
-                </div>
-              </div>
-            </div>
-
-            <div className="col-6 col-md-4 col-lg-3">
-              <div
-                className="card p-3 shadow-sm h-100"
-                style={{ cursor: "pointer" }}
-                onClick={() => navigate("/owner-booking-history")}
-              >
-                <div className="text-muted fw-bold">Overdue</div>
-                <div className="fs-3 fw-bold">{statusMap.get("Overdue") || statusMap.get("overdue") || 0}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* ================== ADMIN: ACTION NEEDED ================== */}
-          <div className="row g-3 mb-4">
-            {/* Pending approvals */}
             <div className="col-12 col-lg-6">
               <div className="card p-3 shadow-sm h-100">
-                <div className="d-flex justify-content-between align-items-center mb-2">
+                <div className="d-flex justify-content-between align-items-center mb-2 gap-2">
                   <div>
                     <h5 className="fw-bold mb-0">
                       <i className="bi bi-hourglass-split me-2"></i>
                       Pending Approvals
                     </h5>
-                    <div className="text-muted small">Only the newest pending requests</div>
+                    <div className="text-muted small">
+                      Showing {adminPending.length} of {adminPendingAll.length}
+                    </div>
                   </div>
+
+                  <button
+                    className="btn btn-outline-dark btn-sm fw-bold"
+                    onClick={() => navigate("/requested-bookings")}
+                  >
+                    View All
+                  </button>
                 </div>
 
                 {adminPending.length === 0 ? (
@@ -726,17 +657,25 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Overdue */}
             <div className="col-12 col-lg-6">
               <div className="card p-3 shadow-sm h-100">
-                <div className="d-flex justify-content-between align-items-center mb-2">
+                <div className="d-flex justify-content-between align-items-center mb-2 gap-2">
                   <div>
                     <h5 className="fw-bold mb-0">
                       <i className="bi bi-clock-history me-2"></i>
                       Overdue Items
                     </h5>
-                    <div className="text-muted small">Needs attention</div>
+                    <div className="text-muted small">
+                      Showing {adminOverdue.length} of {adminOverdueAll.length}
+                    </div>
                   </div>
+
+                  <button
+                    className="btn btn-outline-dark btn-sm fw-bold"
+                    onClick={() => navigate("/owner-booking-history")}
+                  >
+                    View All
+                  </button>
                 </div>
 
                 {adminOverdue.length === 0 ? (
@@ -765,7 +704,7 @@ const Home = () => {
                                 <button
                                   className="btn btn-secondary btn-sm fw-bold"
                                   disabled={busy}
-                                  onClick={() => handleStatusChange(rid, "Returned")}
+                                  onClick={() => goToReturnImages(rid)}
                                 >
                                   Mark Returned
                                 </button>
@@ -781,7 +720,6 @@ const Home = () => {
             </div>
           </div>
 
-          {/* ================== ADMIN: TODAY SCHEDULE ================== */}
           <div className="row g-3 mb-4">
             <div className="col-12 col-lg-6">
               <div className="card p-3 shadow-sm h-100">
@@ -819,9 +757,9 @@ const Home = () => {
                                 <button
                                   className="btn btn-primary btn-sm fw-bold"
                                   disabled={busy}
-                                  onClick={() => goToConditionImages(rid)}
+                                  onClick={() => goToCheckoutImages(rid)}
                                 >
-                                  Add Condition Images
+                                  Checkout
                                 </button>
                               </td>
                             </tr>
@@ -875,7 +813,7 @@ const Home = () => {
                                 <button
                                   className="btn btn-secondary btn-sm fw-bold"
                                   disabled={busy}
-                                  onClick={() => handleStatusChange(rid, "Returned")}
+                                  onClick={() => goToReturnImages(rid)}
                                 >
                                   Mark Returned
                                 </button>
@@ -891,7 +829,6 @@ const Home = () => {
             </div>
           </div>
 
-          {/* ================== ADMIN: MINI REPORTS ================== */}
           <div className="card p-3 shadow-sm">
             <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
               <h5 className="fw-bold mb-0">Reports</h5>
@@ -940,9 +877,7 @@ const Home = () => {
           </div>
         </>
       ) : !isStaff ? (
-        // ---------------- STUDENT HOME ----------------
         <>
-          {/* Student: Recent bookings preview */}
           <div className="card p-3 shadow-sm mb-4">
             <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
               <h5 className="fw-bold mb-0">Recent Bookings</h5>
@@ -1013,7 +948,6 @@ const Home = () => {
             )}
           </div>
 
-          {/* Student: Recommended */}
           <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
             <div>
               <h4 className="fw-bold mb-0">Recommended for you</h4>
@@ -1051,10 +985,8 @@ const Home = () => {
           )}
         </>
       ) : (
-        // ---------------- FACULTY HOME ----------------
         <>
           <div className="row g-3">
-            {/* RECENT INCOMING REQUESTS */}
             <div className="col-12">
               <div className="card p-3 shadow-sm">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -1089,11 +1021,9 @@ const Home = () => {
                           return (
                             <tr key={rid}>
                               <td className="fw-bold">{r.item_name || "Tool"}</td>
-
                               <td>
                                 <div className="fw-bold">{r.email || r.borrower_name || "Requester"}</div>
                               </td>
-
                               <td className="small">
                                 <div>
                                   <b>From:</b> {fmtDate(r.requested_start)}
@@ -1102,11 +1032,9 @@ const Home = () => {
                                   <b>To:</b> {fmtDate(r.requested_end)}
                                 </div>
                               </td>
-
                               <td>
                                 <span className={`badge ${badgeClassForStatus(statusVal)}`}>{displayStatus(statusVal)}</span>
                               </td>
-
                               <td>
                                 <div className="d-flex flex-wrap gap-2">
                                   <button
@@ -1140,7 +1068,6 @@ const Home = () => {
               </div>
             </div>
 
-            {/* TODAY PICKUPS */}
             <div className="col-12 col-lg-6">
               <div className="card p-3 shadow-sm h-100">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -1182,9 +1109,9 @@ const Home = () => {
                                 <button
                                   className="btn btn-primary btn-sm fw-bold"
                                   disabled={busy}
-                                  onClick={() => goToConditionImages(rid)}
+                                  onClick={() => goToCheckoutImages(rid)}
                                 >
-                                  Add Condition Images
+                                  Checkout
                                 </button>
                               </td>
                             </tr>
@@ -1197,7 +1124,6 @@ const Home = () => {
               </div>
             </div>
 
-            {/* TODAY DUE */}
             <div className="col-12 col-lg-6">
               <div className="card p-3 shadow-sm h-100">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -1245,7 +1171,7 @@ const Home = () => {
                                 <button
                                   className="btn btn-secondary btn-sm fw-bold"
                                   disabled={busy}
-                                  onClick={() => handleStatusChange(rid, "Returned")}
+                                  onClick={() => goToReturnImages(rid)}
                                 >
                                   Mark Returned
                                 </button>
