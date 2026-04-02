@@ -1,5 +1,5 @@
 // src/pages/EditConditionImages.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { itemsService, bookingsService, API_BASE } from "../services/api";
 
@@ -32,10 +32,17 @@ const EditConditionImages = () => {
         setError("");
 
         const res = await itemsService.getBorrowRequestConditionImages(requestId);
-        setImages(Array.isArray(res) ? res : []);
+
+        const normalizedImages = Array.isArray(res)
+          ? res
+          : Array.isArray(res?.images)
+          ? res.images
+          : [];
+
+        setImages(normalizedImages);
       } catch (err) {
         console.error("Condition image load failed:", err);
-        // Keep page open even if no previous images exist
+        // Keep the page open even if fetch fails or there are no old images yet
         setImages([]);
       } finally {
         setLoading(false);
@@ -63,6 +70,18 @@ const EditConditionImages = () => {
     }));
   };
 
+  const normalizeImageType = (value) => String(value || "").trim().toLowerCase();
+
+  const beforeImages = useMemo(
+    () => images.filter((img) => normalizeImageType(img?.image_type) === "before"),
+    [images]
+  );
+
+  const afterImages = useMemo(
+    () => images.filter((img) => normalizeImageType(img?.image_type) === "after"),
+    [images]
+  );
+
   const handleUploadAndContinue = async () => {
     if (!formData.image) {
       setError("Please select an image first.");
@@ -77,31 +96,37 @@ const EditConditionImages = () => {
       data.append("image", formData.image);
       data.append("image_type", type === "checkout" ? "Before" : "After");
 
-      // note can also be sent with image upload for return type, so we don't have to rely on the return endpoint supporting notes
+      // For return, optionally send a note with the upload too
       if (type === "return" && formData.note.trim()) {
         data.append("note", formData.note.trim());
       }
 
-      // upload image first
+      // Upload image first
       const uploadRes = await itemsService.uploadConditionImage(requestId, data);
 
-      const newImg = uploadRes?.image_url || uploadRes?.filename;
-      if (newImg) {
-        setImages((prev) => [...prev, newImg]);
+      // If backend returns full image object, use it.
+      // Otherwise create a fallback object so UI updates immediately.
+      const newImage =
+        uploadRes?.image ||
+        (uploadRes?.image_url || uploadRes?.filename
+          ? {
+              image_url: uploadRes.image_url,
+              filename: uploadRes.filename,
+              image_type: type === "checkout" ? "Before" : "After",
+              note: type === "return" ? formData.note.trim() : "",
+            }
+          : null);
+
+      if (newImage) {
+        setImages((prev) => [...prev, newImage]);
       }
 
-      // then perform action
+      // 2. Then perform booking action
       if (type === "checkout") {
         await bookingsService.checkoutRequest(requestId);
         alert("Checked out successfully!");
       } else if (type === "return") {
-        
-        if (typeof bookingsService.returnRequest === "function") {
-          await bookingsService.returnRequest(requestId, formData.note.trim());
-        } else {
-          throw new Error("Return service is not available.");
-        }
-
+        await bookingsService.returnRequest(requestId, formData.note.trim());
         alert("Returned successfully!");
       } else {
         throw new Error("Invalid action type.");
@@ -118,12 +143,39 @@ const EditConditionImages = () => {
 
   const getImageSrc = (image) => {
     if (!image) return "https://via.placeholder.com/150?text=No+Image";
-    if (typeof image === "string" && image.startsWith("http")) return image;
 
     const path = image?.image_url || image?.filename || image;
-    if (typeof path === "string" && path.startsWith("http")) return path;
 
+    if (typeof path === "string" && path.startsWith("http")) return path;
     return `${API_BASE}${path}`;
+  };
+
+  const renderImageGrid = (list, emptyText, keyPrefix) => {
+    if (list.length === 0) {
+      return <div className="alert alert-light mb-0">{emptyText}</div>;
+    }
+
+    return (
+      <div className="row g-3">
+        {list.map((img, idx) => (
+          <div className="col-6" key={`${keyPrefix}-${idx}`}>
+            <div className="border rounded p-2 bg-light">
+              <img
+                src={getImageSrc(img)}
+                alt={`${keyPrefix} ${idx + 1}`}
+                className="img-fluid rounded"
+                style={{ height: "180px", width: "100%", objectFit: "cover" }}
+              />
+              {img?.note ? (
+                <div className="small text-muted mt-2">
+                  <strong>Note:</strong> {img.note}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   if (loading) {
@@ -142,39 +194,48 @@ const EditConditionImages = () => {
           : "Upload an image after receiving the item back. Add a note if there is damage or anything important to mention."}
       </div>
 
-      {/* existing images */}
-      <div className="row g-4 mb-4">
-        {images.length === 0 && (
-          <div className="col-12">
-            <div className="alert alert-info">No condition images yet.</div>
-          </div>
-        )}
+      {/* Condition comparison section */}
+      <div className="mb-4">
+        <h4 className="fw-bold mb-3">Condition Comparison</h4>
 
-        {images.map((img, idx) => (
-          <div className="col-md-3" key={idx}>
-            <div className="card shadow">
-              <div
-                style={{
-                  height: "180px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                  background: "#f8f9fa",
-                }}
-              >
-                <img
-                  src={getImageSrc(img)}
-                  alt={`Condition ${idx + 1}`}
-                  style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "cover" }}
-                />
+        {images.length === 0 ? (
+          <div className="alert alert-info">No condition images yet.</div>
+        ) : (
+          <div className="row g-4">
+            <div className="col-lg-6">
+              <div className="card shadow h-100">
+                <div className="card-header bg-primary text-white fw-bold">
+                  Before Checkout
+                </div>
+                <div className="card-body">
+                  {renderImageGrid(
+                    beforeImages,
+                    "No checkout images uploaded yet.",
+                    "before"
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="col-lg-6">
+              <div className="card shadow h-100">
+                <div className="card-header bg-success text-white fw-bold">
+                  After Return
+                </div>
+                <div className="card-body">
+                  {renderImageGrid(
+                    afterImages,
+                    "No return images uploaded yet.",
+                    "after"
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        ))}
+        )}
       </div>
 
-      {/* upload card */}
+      {/* Upload card */}
       <div className="card shadow p-4" style={{ maxWidth: "520px" }}>
         <h5 className="fw-bold mb-3">
           {type === "checkout" ? "Upload Checkout Image" : "Upload Return Image"}

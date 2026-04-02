@@ -895,7 +895,7 @@ app.post(
         [itemId, borrowRequestId, filename, image_type]
       );
 
-      res.json({ message: "Condition image uploaded successfully", filename });
+      res.json({ message: "Condition image uploaded successfully", image: { image_url: `/uploads/condition-images/${filename}`, image_type } });
     } catch (err) {
       console.error("condition-image upload error:", err);
       res.status(500).json({ error: "Server error" });
