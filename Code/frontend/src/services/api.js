@@ -258,7 +258,7 @@ export const adminService = {
   updateUserRole: (userId, role) =>
     apiRequest(`/api/admin/users/${userId}/role`, {
       method: "PUT",
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({ user_type:  role }),
     }),
 
   deleteUser: (userId) =>
