@@ -12,27 +12,31 @@ const EditConditionImages = () => {
 
   const [loading, setLoading] = useState(true);
   const [images, setImages] = useState([]);
-  const [formData, setFormData] = useState({ image: null });
+  const [formData, setFormData] = useState({
+    image: null,
+    note: "",
+  });
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
-  // ---------------- LOAD IMAGES ----------------
   useEffect(() => {
     if (!requestId) {
       alert("Invalid request. Please try again.");
-      navigate("/home");
+      navigate("/requested-bookings");
       return;
     }
 
     const fetchImages = async () => {
       try {
         setLoading(true);
+        setError("");
+
         const res = await itemsService.getBorrowRequestConditionImages(requestId);
-        setImages(res);
+        setImages(Array.isArray(res) ? res : []);
       } catch (err) {
-        console.error(err);
-        alert("Failed to load condition images");
-        navigate("/home");
+        console.error("Condition image load failed:", err);
+        // Keep page open even if no previous images exist
+        setImages([]);
       } finally {
         setLoading(false);
       }
@@ -41,16 +45,25 @@ const EditConditionImages = () => {
     fetchImages();
   }, [requestId, navigate]);
 
-  // ---------------- FILE SELECT ----------------
-  const handleChange = (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      setFormData({ image: file });
+      setFormData((prev) => ({
+        ...prev,
+        image: file,
+      }));
+      setError("");
     }
   };
 
-  // ---------------- UPLOAD + ACTION ----------------
-  const handleUpload = async () => {
+  const handleNoteChange = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      note: e.target.value,
+    }));
+  };
+
+  const handleUploadAndContinue = async () => {
     if (!formData.image) {
       setError("Please select an image first.");
       return;
@@ -64,41 +77,58 @@ const EditConditionImages = () => {
       data.append("image", formData.image);
       data.append("image_type", type === "checkout" ? "Before" : "After");
 
-      // Upload image
-      const res = await itemsService.uploadConditionImage(requestId, data);
+      // note can also be sent with image upload for return type, so we don't have to rely on the return endpoint supporting notes
+      if (type === "return" && formData.note.trim()) {
+        data.append("note", formData.note.trim());
+      }
 
-      const newImg = res.image_url || res.filename;
-      setImages((prev) => [...prev, newImg]);
-      setFormData({ image: null });
+      // upload image first
+      const uploadRes = await itemsService.uploadConditionImage(requestId, data);
 
-      // THEN perform action
+      const newImg = uploadRes?.image_url || uploadRes?.filename;
+      if (newImg) {
+        setImages((prev) => [...prev, newImg]);
+      }
+
+      // then perform action
       if (type === "checkout") {
         await bookingsService.checkoutRequest(requestId);
         alert("Checked out successfully!");
       } else if (type === "return") {
-        await bookingsService.returnRequest(requestId);
+        
+        if (typeof bookingsService.returnRequest === "function") {
+          await bookingsService.returnRequest(requestId, formData.note.trim());
+        } else {
+          throw new Error("Return service is not available.");
+        }
+
         alert("Returned successfully!");
+      } else {
+        throw new Error("Invalid action type.");
       }
 
-      // Redirect
-      navigate("/home");
-
+      navigate("/requested-bookings");
     } catch (err) {
-      console.error(err);
-      setError("Upload failed. Must be JPEG, PNG, or WebP under 5MB.");
+      console.error("Upload/action failed:", err);
+      setError(err?.message || "Upload failed. Must be JPEG, PNG, or WebP under 5MB.");
     } finally {
       setUploading(false);
     }
   };
 
-  // ---------------- IMAGE URL ----------------
   const getImageSrc = (image) => {
     if (!image) return "https://via.placeholder.com/150?text=No+Image";
-    if (image.startsWith("http")) return image;
-    return `${API_BASE}${image}`;
+    if (typeof image === "string" && image.startsWith("http")) return image;
+
+    const path = image?.image_url || image?.filename || image;
+    if (typeof path === "string" && path.startsWith("http")) return path;
+
+    return `${API_BASE}${path}`;
   };
 
-  if (loading) return <div className="container p-4">Loading...</div>;
+  if (loading) {
+    return <div className="container p-4">Loading...</div>;
+  }
 
   return (
     <div className="container-fluid px-4 py-4">
@@ -108,11 +138,11 @@ const EditConditionImages = () => {
 
       <div className="text-muted mb-4">
         {type === "checkout"
-          ? "Upload images BEFORE giving the item."
-          : "Upload images AFTER receiving the item."}
+          ? "Upload an image before giving the item to the user."
+          : "Upload an image after receiving the item back. Add a note if there is damage or anything important to mention."}
       </div>
 
-      {/* EXISTING IMAGES */}
+      {/* existing images */}
       <div className="row g-4 mb-4">
         {images.length === 0 && (
           <div className="col-12">
@@ -134,7 +164,7 @@ const EditConditionImages = () => {
                 }}
               >
                 <img
-                  src={getImageSrc(img.image_url || img.filename)}
+                  src={getImageSrc(img)}
                   alt={`Condition ${idx + 1}`}
                   style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "cover" }}
                 />
@@ -144,31 +174,57 @@ const EditConditionImages = () => {
         ))}
       </div>
 
-      {/* UPLOAD CARD */}
-      <div className="card shadow p-4" style={{ maxWidth: "400px" }}>
-        <h5 className="fw-bold mb-3">Upload Image</h5>
+      {/* upload card */}
+      <div className="card shadow p-4" style={{ maxWidth: "520px" }}>
+        <h5 className="fw-bold mb-3">
+          {type === "checkout" ? "Upload Checkout Image" : "Upload Return Image"}
+        </h5>
 
         {error && <div className="alert alert-danger">{error}</div>}
 
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleChange}
-          className="mb-3"
-        />
+        <div className="mb-3">
+          <label className="form-label fw-semibold">Select Image</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="form-control"
+          />
+        </div>
+
+        {type === "return" && (
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Return Note / Damage Note</label>
+            <textarea
+              className="form-control"
+              rows={4}
+              placeholder="Example: Small scratch on the side, charger missing, item returned in good condition, etc."
+              value={formData.note}
+              onChange={handleNoteChange}
+            />
+            <div className="form-text">
+              Add any note about damage, missing parts, or item condition.
+            </div>
+          </div>
+        )}
 
         <div className="d-flex gap-2">
           <button
             className="btn btn-success fw-bold"
-            onClick={handleUpload}
+            onClick={handleUploadAndContinue}
             disabled={uploading}
           >
-            {uploading ? "Uploading..." : "Upload & Continue"}
+            {uploading
+              ? "Processing..."
+              : type === "checkout"
+              ? "Upload & Check Out"
+              : "Upload & Return"}
           </button>
 
           <button
             className="btn btn-secondary fw-bold"
-            onClick={() => navigate("/home")}
+            onClick={() => navigate("/requested-bookings")}
+            disabled={uploading}
           >
             Cancel
           </button>
