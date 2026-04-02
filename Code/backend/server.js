@@ -909,16 +909,17 @@ app.get("/api/borrowrequest/:id/condition-images", authenticateToken, async (req
   if (!borrow_request_id) return res.status(400).json({ error: "Invalid borrow request ID" });
 
   try {
-    const images = await query(
-      `SELECT image_id AS id,
-              CONCAT('/uploads/condition-images/', filename) AS image_url,
-              image_type, 
-              timestamp
-       FROM conditionimages
-       WHERE borrow_request_id = ?
-       ORDER BY timestamp ASC`,
-      [borrow_request_id]
-    );
+	 const images = await query(
+	  `SELECT image_id AS id,
+          CONCAT('/uploads/condition-images/', filename) AS image_url,
+          image_type,
+          \`timestamp\`
+	   FROM conditionimages
+	   WHERE borrow_request_id = ?
+	   ORDER BY \`timestamp\` ASC`,
+	  [borrow_request_id]
+	);
+
 
     res.json({ images });
   } catch (err) {
