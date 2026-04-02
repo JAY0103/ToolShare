@@ -2,17 +2,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { bookingsService, API_BASE } from "../services/api";
 
-const RECENT_DAYS = 15;
-
-// Normalize statuses to lowercase for comparisons
-const OPEN_STATUSES = new Set(["pending", "approved", "checkedout", "overdue"]);
-
 const RequestedBookings = () => {
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const userType = String(user?.user_type || "").toLowerCase();
 
   // Faculty/Admin can view incoming requests
-  // (Assumption: "tool owner" is Faculty; Admin always can)
   const canViewIncoming = userType === "faculty" || userType === "admin";
 
   const [requests, setRequests] = useState([]);
@@ -22,6 +16,9 @@ const RequestedBookings = () => {
   const [notes, setNotes] = useState({});
   // controls which request is currently showing the rejection textarea
   const [rejectingId, setRejectingId] = useState(null);
+
+  // status filter
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const fetchRequests = async () => {
     try {
@@ -38,10 +35,6 @@ const RequestedBookings = () => {
         if (existingNote) initialNotes[r.request_id] = existingNote;
       });
       setNotes((prev) => ({ ...initialNotes, ...prev }));
-
-      // Debug (uncomment if needed)
-      // console.log("incoming requests:", list);
-      // console.log("statuses:", list.map((r) => r.status));
     } catch (err) {
       alert(err?.message || "Failed to load incoming requests");
     } finally {
@@ -90,72 +83,52 @@ const RequestedBookings = () => {
     }
   };
 
-  // Check out / Return
-  const handleCheckout = async (requestId) => {
-    try {
-      await bookingsService.checkoutRequest(requestId);
-      await fetchRequests();
-      alert("Checked out successfully!");
-    } catch (err) {
-      alert(err?.message || "Check out failed");
-    }
-  };
-
-  const handleReturn = async (requestId) => {
-    try {
-      await bookingsService.returnRequest(requestId);
-      await fetchRequests();
-      alert("Returned successfully!");
-    } catch (err) {
-      alert(err?.message || "Return failed");
-    }
-  };
-
   const badgeClassForStatus = (status) => {
     const s = String(status || "").toLowerCase();
+
     if (s === "approved") return "bg-success";
     if (s === "pending") return "bg-warning text-dark";
-    if (s === "checkedout") return "bg-primary";
-    if (s === "returned") return "bg-secondary";
+    if (s === "checkedout" || s === "checked out") return "bg-primary";
+    if (s === "returned" || s === "return") return "bg-secondary";
     if (s === "overdue") return "bg-danger";
     if (s === "rejected") return "bg-danger";
     if (s === "cancelled" || s === "canceled") return "bg-secondary";
+
     return "bg-dark";
   };
 
-  // Filter: only open + recent
+  const normalizeStatus = (status) => {
+    const s = String(status || "").toLowerCase().trim();
+
+    if (s === "checked out") return "checkedout";
+    if (s === "return") return "returned";
+    if (s === "canceled") return "cancelled";
+
+    return s;
+  };
+
+  // filter only by selected status and sort by most recent requested_start, then created_at, then updated_at
   const filteredRequests = useMemo(() => {
-    const now = Date.now();
-    const cutoff = now - RECENT_DAYS * 24 * 60 * 60 * 1000;
-
-    const toTime = (d) => {
-      const t = new Date(d).getTime();
-      return Number.isFinite(t) ? t : null;
-    };
-
     return (requests || [])
       .filter((r) => {
-        const status = String(r.status || "Pending").toLowerCase();
-        if (!OPEN_STATUSES.has(status)) return false;
+        const status = normalizeStatus(r.status || "pending");
 
-        // pick a reasonable "recency" timestamp
-        const candidate =
-          toTime(r.requested_start) ??
-          toTime(r.created_at) ??
-          toTime(r.updated_at) ??
-          toTime(r.requested_end);
-
-        // if backend doesn't send any date fields, keep it
-        if (!candidate) return true;
-
-        return candidate >= cutoff;
+        if (statusFilter === "all") return true;
+        return status === statusFilter;
       })
       .sort((a, b) => {
         const aT = new Date(a.requested_start || a.created_at || a.updated_at || 0).getTime();
         const bT = new Date(b.requested_start || b.created_at || b.updated_at || 0).getTime();
         return (bT || 0) - (aT || 0);
       });
-  }, [requests]);
+  }, [requests, statusFilter]);
+
+  const formatFilterLabel = (value) => {
+    if (value === "all") return "All Requests";
+    if (value === "checkedout") return "Checked Out Requests";
+    if (value === "cancelled") return "Cancelled Requests";
+    return `${value.charAt(0).toUpperCase() + value.slice(1)} Requests`;
+  };
 
   if (!canViewIncoming) {
     return (
@@ -176,8 +149,8 @@ const RequestedBookings = () => {
       <div className="d-flex align-items-start justify-content-between gap-3 flex-wrap">
         <div>
           <h2 className="fw-bold mb-2">Incoming Requests</h2>
-          <div className="text-muted mb-4">
-            Showing <strong>open</strong> requests from the last <strong>{RECENT_DAYS}</strong> days.
+          <div className="text-muted mb-3">
+            Showing <strong>{formatFilterLabel(statusFilter)}</strong>
           </div>
         </div>
 
@@ -186,13 +159,38 @@ const RequestedBookings = () => {
         </button>
       </div>
 
+      {/* Status Filter Buttons */}
+      <div className="mb-4 d-flex gap-2 flex-wrap">
+        {[
+          { value: "all", label: "All" },
+          { value: "pending", label: "Pending" },
+          { value: "approved", label: "Approved" },
+          { value: "checkedout", label: "Checked Out" },
+          { value: "returned", label: "Returned" },
+          { value: "overdue", label: "Overdue" },
+          { value: "rejected", label: "Rejected" },
+          { value: "cancelled", label: "Cancelled" },
+        ].map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            className={`btn btn-sm ${
+              statusFilter === item.value ? "btn-dark" : "btn-outline-dark"
+            }`}
+            onClick={() => setStatusFilter(item.value)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
       {filteredRequests.length === 0 ? (
-        <div className="alert alert-info text-center">No recent open incoming requests found.</div>
+        <div className="alert alert-info text-center">No requests found for this filter.</div>
       ) : (
         <div className="row g-4">
           {filteredRequests.map((req) => {
             const rawStatus = req.status || "Pending";
-            const status = String(rawStatus).toLowerCase();
+            const status = normalizeStatus(rawStatus);
 
             const requesterName =
               req.borrower_name ||
@@ -203,7 +201,7 @@ const RequestedBookings = () => {
 
             return (
               <div key={req.request_id} className="col-md-6 col-lg-4">
-                <div className="item-card shadow-sm">
+                <div className="item-card shadow-sm h-100">
                   <div className="img-frame">
                     <img
                       src={getImageUrl(req.image_url)}
@@ -218,7 +216,9 @@ const RequestedBookings = () => {
                   <div className="card-body d-flex flex-column">
                     <div className="d-flex justify-content-between align-items-start gap-2">
                       <h5 className="card-title mb-2">{req.item_name}</h5>
-                      <span className={`badge ${badgeClassForStatus(rawStatus)}`}>{rawStatus}</span>
+                      <span className={`badge ${badgeClassForStatus(rawStatus)}`}>
+                        {rawStatus}
+                      </span>
                     </div>
 
                     {req.request_group_id ? (
@@ -235,6 +235,7 @@ const RequestedBookings = () => {
                       <strong>From:</strong>{" "}
                       {req.requested_start ? new Date(req.requested_start).toLocaleString() : "—"}
                     </p>
+
                     <p className="mb-1">
                       <strong>To:</strong>{" "}
                       {req.requested_end ? new Date(req.requested_end).toLocaleString() : "—"}
@@ -250,6 +251,7 @@ const RequestedBookings = () => {
                         {new Date(req.checked_out_at).toLocaleString()}
                       </p>
                     )}
+
                     {req.returned_at && (
                       <p className="mb-1">
                         <strong>Returned:</strong> {new Date(req.returned_at).toLocaleString()}
@@ -280,7 +282,7 @@ const RequestedBookings = () => {
                       </div>
                     )}
 
-                    {/* Note from server (after decision) */}
+                    {/* Note from server */}
                     {status !== "pending" && noteFromServer && (
                       <div className="alert alert-info py-2 mt-2 mb-2">
                         <strong>Message to requester:</strong> {noteFromServer}
@@ -324,7 +326,7 @@ const RequestedBookings = () => {
                       ) : status === "approved" ? (
                         <button
                           onClick={() =>
-                            window.location.href = `/edit-condition-images?item_id=${req.item_id}&request_id=${req.request_id}&type=checkout`
+                            (window.location.href = `/edit-condition-images?item_id=${req.item_id}&request_id=${req.request_id}&type=checkout`)
                           }
                           className="btn btn-primary btn-sm flex-fill"
                         >
@@ -333,7 +335,7 @@ const RequestedBookings = () => {
                       ) : status === "checkedout" || status === "overdue" ? (
                         <button
                           onClick={() =>
-                            window.location.href = `/edit-condition-images?item_id=${req.item_id}&request_id=${req.request_id}&type=return`
+                            (window.location.href = `/edit-condition-images?item_id=${req.item_id}&request_id=${req.request_id}&type=return`)
                           }
                           className={`btn btn-sm flex-fill ${
                             status === "overdue" ? "btn-danger" : "btn-warning"
