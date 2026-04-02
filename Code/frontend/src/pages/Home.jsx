@@ -360,11 +360,11 @@ const Home = () => {
     const ok = addToCart(item);
     if (!ok) {
       alert("This tool is already in your basket. Open basket to request it.");
-      navigate("/basket");
+      navigate("/cart");
       return;
     }
     alert("Added to basket. Select dates and submit your request.");
-    navigate("/basket");
+    navigate("/cart");
   };
 
   const loadData = async () => {
