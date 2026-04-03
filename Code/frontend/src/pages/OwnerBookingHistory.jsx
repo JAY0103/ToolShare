@@ -47,38 +47,85 @@ const downloadCsv = (filename, rows) => {
   URL.revokeObjectURL(url);
 };
 
-const getStatusClass = (status) => {
-  switch (status) {
-    case "Approved":
-      return "bg-success-subtle text-success border border-success-subtle";
-    case "Pending":
-      return "bg-secondary-subtle text-secondary border border-secondary-subtle";
-    case "Rejected":
-      return "bg-danger-subtle text-danger border border-danger-subtle";
-    case "CheckedOut":
-      return "bg-info-subtle text-info border border-info-subtle";
-    case "Returned":
-      return "bg-primary-subtle text-primary border border-primary-subtle";
-    case "Overdue":
-      return "bg-warning-subtle text-warning border border-warning-subtle";
-    default:
-      return "bg-dark-subtle text-dark border";
-  }
+const statusMeta = {
+  Pending: {
+    cardClass: "border-warning-subtle bg-warning-subtle",
+    badgeClass: "bg-warning-subtle text-warning-emphasis border border-warning-subtle",
+    dot: "#f59e0b",
+  },
+  Approved: {
+    cardClass: "border-success-subtle bg-success-subtle",
+    badgeClass: "bg-success-subtle text-success-emphasis border border-success-subtle",
+    dot: "#16a34a",
+  },
+  Rejected: {
+    cardClass: "border-danger-subtle bg-danger-subtle",
+    badgeClass: "bg-danger-subtle text-danger-emphasis border border-danger-subtle",
+    dot: "#dc2626",
+  },
+  CheckedOut: {
+    cardClass: "border-info-subtle bg-info-subtle",
+    badgeClass: "bg-info-subtle text-info-emphasis border border-info-subtle",
+    dot: "#0891b2",
+  },
+  Returned: {
+    cardClass: "border-primary-subtle bg-primary-subtle",
+    badgeClass: "bg-primary-subtle text-primary-emphasis border border-primary-subtle",
+    dot: "#2563eb",
+  },
+  Overdue: {
+    cardClass: "border-danger-subtle",
+    badgeClass: "bg-danger-subtle text-danger-emphasis border border-danger-subtle",
+    dot: "#ef4444",
+  },
+  Default: {
+    cardClass: "border-light bg-light",
+    badgeClass: "bg-light text-dark border",
+    dot: "#6b7280",
+  },
 };
 
-const StatCard = ({ label, value, extraClass = "" }) => (
-  <div className="col-6 col-md-4 col-xl">
-    <div
-      className={`card h-100 border-0 shadow-sm ${extraClass}`}
-      style={{ borderRadius: "16px" }}
-    >
-      <div className="card-body py-3">
-        <div className="small text-muted fw-semibold text-uppercase">{label}</div>
-        <div className="fs-4 fw-bold mt-1">{value}</div>
+const getStatusClass = (status) => {
+  return statusMeta[status]?.badgeClass || statusMeta.Default.badgeClass;
+};
+
+const getStatusCount = (requests, targetStatus) =>
+  requests.filter((r) => String(r.status || "") === targetStatus).length;
+
+const StatCard = ({ title, value, subtitle, tone = "Default" }) => {
+  const meta = statusMeta[tone] || statusMeta.Default;
+
+  return (
+    <div className="col-12 col-sm-6 col-xl">
+      <div
+        className={`card h-100 border shadow-sm ${meta.cardClass}`}
+        style={{ borderRadius: "18px" }}
+      >
+        <div className="card-body p-3 p-md-4">
+          <div className="d-flex align-items-start justify-content-between">
+            <div>
+              <div className="text-muted small fw-semibold text-uppercase mb-2">{title}</div>
+              <div className="fw-bold" style={{ fontSize: "1.9rem", lineHeight: 1 }}>
+                {value}
+              </div>
+              <div className="small text-muted mt-2">{subtitle}</div>
+            </div>
+            <span
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: "999px",
+                backgroundColor: meta.dot,
+                flexShrink: 0,
+                marginTop: 4,
+              }}
+            />
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const OwnerBookingHistory = () => {
   const navigate = useNavigate();
@@ -101,7 +148,6 @@ const OwnerBookingHistory = () => {
   // Data
   const [requests, setRequests] = useState([]);
 
-  // Guard + role
   useEffect(() => {
     const user = getUserFromStorage();
     const r = String(user?.user_type || "").toLowerCase();
@@ -114,7 +160,6 @@ const OwnerBookingHistory = () => {
     }
   }, [navigate]);
 
-  // Load items for dropdown
   useEffect(() => {
     const loadItems = async () => {
       try {
@@ -187,12 +232,15 @@ const OwnerBookingHistory = () => {
   };
 
   const counts = useMemo(() => {
-    const c = { total: requests.length };
-    for (const s of STATUS_OPTIONS) {
-      if (!s) continue;
-      c[s] = requests.filter((r) => r.status === s).length;
-    }
-    return c;
+    return {
+      total: requests.length,
+      pending: getStatusCount(requests, "Pending"),
+      approved: getStatusCount(requests, "Approved"),
+      rejected: getStatusCount(requests, "Rejected"),
+      checkedOut: getStatusCount(requests, "CheckedOut"),
+      returned: getStatusCount(requests, "Returned"),
+      overdue: getStatusCount(requests, "Overdue"),
+    };
   }, [requests]);
 
   const onExportCsv = () => {
@@ -239,278 +287,340 @@ const OwnerBookingHistory = () => {
   };
 
   return (
-    <div className="container-fluid px-3 px-md-4 py-4">
-      {/* Header */}
-      <div
-        className="card border-0 shadow-sm mb-4"
-        style={{
-          borderRadius: "20px",
-          background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
-        }}
-      >
-        <div className="card-body p-4">
-          <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
-            <div>
-              <div className="d-inline-flex align-items-center px-3 py-1 rounded-pill bg-primary-subtle text-primary fw-semibold small mb-3">
-                Booking Management
-              </div>
-              <h2 className="fw-bold mb-2" style={{ letterSpacing: "-0.5px" }}>
-                Booking History
-              </h2>
-              <div className="text-muted" style={{ maxWidth: "760px" }}>
-                {isAdmin
-                  ? "Admin view showing all booking requests across the system."
-                  : "View all booking requests for tools you own, including Pending, Approved, Rejected, Checked Out, Returned, and Overdue records."}
-              </div>
-            </div>
-
-            <div className="d-flex flex-wrap gap-2">
-              <button
-                className="btn btn-success px-4 fw-semibold shadow-sm"
-                onClick={onExportCsv}
-                disabled={loading || requests.length === 0}
-                style={{ borderRadius: "12px" }}
-              >
-                ⬇ Export CSV
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="row g-3 mb-4">
-        <StatCard label="Total" value={counts.total} />
-        <StatCard label="Pending" value={counts.Pending || 0} />
-        <StatCard label="Approved" value={counts.Approved || 0} />
-        <StatCard label="Rejected" value={counts.Rejected || 0} />
-        <StatCard label="Checked Out" value={counts.CheckedOut || 0} />
-        <StatCard label="Returned" value={counts.Returned || 0} />
-        <StatCard label="Overdue" value={counts.Overdue || 0} />
-      </div>
-
-      {/* Filters */}
-      <div
-        className="card border-0 shadow-sm mb-4"
-        style={{ borderRadius: "20px", overflow: "hidden" }}
-      >
-        <div className="card-header bg-white border-0 pt-4 px-4 pb-0">
-          <h5 className="fw-bold mb-1">Filters</h5>
-          <div className="text-muted small">Refine the booking history without changing any data.</div>
-        </div>
-
-        <div className="card-body p-4">
-          <form onSubmit={onApplyFilters}>
-            <div className="row g-3">
-              <div className="col-12 col-lg-4">
-                <label className="form-label fw-semibold">Search</label>
-                <input
-                  className="form-control"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Student ID, name, or email"
-                  style={{ borderRadius: "12px", minHeight: "46px" }}
-                />
-              </div>
-
-              <div className="col-12 col-md-6 col-lg-2">
-                <label className="form-label fw-semibold">Status</label>
-                <select
-                  className="form-select"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  style={{ borderRadius: "12px", minHeight: "46px" }}
-                >
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s || "all"} value={s}>
-                      {s ? s : "All"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="col-12 col-md-6 col-lg-3">
-                <label className="form-label fw-semibold">
-                  {isAdmin ? "Tool (any)" : "Tool (owned)"}
-                </label>
-                <select
-                  className="form-select"
-                  value={itemId}
-                  onChange={(e) => setItemId(e.target.value)}
-                  disabled={itemsLoading}
-                  style={{ borderRadius: "12px", minHeight: "46px" }}
-                >
-                  <option value="">All tools</option>
-                  {ownerItems.map((it) => (
-                    <option key={it.item_id} value={it.item_id}>
-                      {it.name}
-                    </option>
-                  ))}
-                </select>
-                {itemsLoading && <div className="small text-muted mt-1">Loading tools…</div>}
-              </div>
-
-              <div className="col-6 col-lg-1">
-                <label className="form-label fw-semibold">From</label>
-                <input
-                  className="form-control"
-                  type="date"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  style={{ borderRadius: "12px", minHeight: "46px" }}
-                />
-              </div>
-
-              <div className="col-6 col-lg-1">
-                <label className="form-label fw-semibold">To</label>
-                <input
-                  className="form-control"
-                  type="date"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  style={{ borderRadius: "12px", minHeight: "46px" }}
-                />
-              </div>
-
-              <div className="col-12 d-flex flex-wrap justify-content-end gap-2 pt-2">
-                <button
-                  className="btn btn-outline-secondary px-4"
-                  type="button"
-                  onClick={onClearFilters}
-                  style={{ borderRadius: "12px" }}
-                >
-                  Clear
-                </button>
-
-                <button
-                  className="btn btn-outline-primary px-4"
-                  type="button"
-                  onClick={() =>
-                    loadHistory({
-                      search: search.trim(),
-                      status: status || "",
-                      item_id: itemId || "",
-                      from: from || "",
-                      to: to || "",
-                    })
-                  }
-                  style={{ borderRadius: "12px" }}
-                >
-                  Refresh
-                </button>
-
-                <button
-                  className="btn btn-primary px-4 fw-semibold"
-                  type="submit"
-                  style={{ borderRadius: "12px" }}
-                >
-                  Apply Filters
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      {/* Error */}
-      {error && (
+    <div
+      className="container-fluid px-3 px-md-4 px-lg-4 py-4"
+      style={{ background: "#f8fafc", minHeight: "100vh" }}
+    >
+      <div className="mx-auto" style={{ maxWidth: "1600px" }}>
+        {/* Header */}
         <div
-          className="alert alert-danger border-0 shadow-sm"
-          role="alert"
-          style={{ borderRadius: "14px" }}
+          className="card border-0 shadow-sm mb-4"
+          style={{
+            borderRadius: "24px",
+            background:
+              "linear-gradient(135deg, #0f172a 0%, #1e293b 45%, #2563eb 100%)",
+            color: "#fff",
+            overflow: "hidden",
+          }}
         >
-          {error}
-        </div>
-      )}
+          <div className="card-body p-4 p-lg-5">
+            <div className="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-4">
+              <div>
+                <div
+                  className="d-inline-flex align-items-center px-3 py-2 mb-3"
+                  style={{
+                    borderRadius: "999px",
+                    background: "rgba(255,255,255,0.12)",
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    backdropFilter: "blur(4px)",
+                  }}
+                >
+                  Booking Operations
+                </div>
 
-      {/* Table */}
-      <div
-        className="card border-0 shadow-sm"
-        style={{ borderRadius: "20px", overflow: "hidden" }}
-      >
-        <div className="card-header bg-white border-0 px-4 pt-4 pb-0">
-          <h5 className="fw-bold mb-1">History Records</h5>
-          <div className="text-muted small">
-            Search by student email, name, or student ID. Export CSV downloads only the currently visible rows.
+                <h1 className="fw-bold mb-2" style={{ letterSpacing: "-0.03em" }}>
+                  Booking History Dashboard
+                </h1>
+
+                <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)", maxWidth: 850 }}>
+                  {isAdmin
+                    ? "Production-style admin dashboard for reviewing all booking requests across the platform."
+                    : "Production-style dashboard for reviewing booking history across the tools you own, with fast filtering and export support."}
+                </p>
+              </div>
+
+              <div className="d-flex flex-wrap gap-2">
+                <button
+                  className="btn btn-light fw-semibold px-4 dashboard-btn"
+                  onClick={onExportCsv}
+                  disabled={loading || requests.length === 0}
+                >
+                  Export CSV
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="card-body p-0">
-          {loading ? (
-            <div className="p-4 text-muted">Loading booking history...</div>
-          ) : requests.length === 0 ? (
-            <div className="p-4 text-muted">
-              {isAdmin ? "No booking requests found in the system." : "No booking requests found for your tools."}
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="table align-middle mb-0">
-                <thead style={{ backgroundColor: "#f8fafc" }}>
-                  <tr>
-                    <th className="px-4 py-3 text-muted fw-semibold border-0">Request ID</th>
-                    <th className="px-3 py-3 text-muted fw-semibold border-0">Tool</th>
-                    <th className="px-3 py-3 text-muted fw-semibold border-0">Borrower</th>
-                    <th className="px-3 py-3 text-muted fw-semibold border-0">Email</th>
-                    <th className="px-3 py-3 text-muted fw-semibold border-0">Student ID</th>
-                    <th className="px-3 py-3 text-muted fw-semibold border-0">Start</th>
-                    <th className="px-3 py-3 text-muted fw-semibold border-0">End</th>
-                    <th className="px-3 py-3 text-muted fw-semibold border-0">Status</th>
-                    <th className="px-3 py-3 text-muted fw-semibold border-0">Note</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {requests.map((r) => {
-                    const borrowerName =
-                      `${r.first_name || ""} ${r.last_name || ""}`.trim() ||
-                      r.borrower_username ||
-                      "Unknown";
-
-                    return (
-                      <tr key={r.request_id}>
-                        <td className="px-4 py-3 fw-semibold">{r.request_id}</td>
-
-                        <td className="px-3 py-3">
-                          <div className="fw-semibold text-dark">{r.item_name}</div>
-                          <div className="small text-muted">Item ID: {r.item_id}</div>
-                        </td>
-
-                        <td className="px-3 py-3">{borrowerName}</td>
-                        <td className="px-3 py-3">{r.borrower_email || "-"}</td>
-                        <td className="px-3 py-3">{r.borrower_student_id || "-"}</td>
-                        <td className="px-3 py-3">{formatDateTime(r.requested_start)}</td>
-                        <td className="px-3 py-3">{formatDateTime(r.requested_end)}</td>
-
-                        <td className="px-3 py-3">
-                          <span
-                            className={`badge fw-semibold px-3 py-2 ${getStatusClass(r.status)}`}
-                            style={{ borderRadius: "999px" }}
-                          >
-                            {r.status}
-                          </span>
-                        </td>
-
-                        <td className="px-3 py-3" style={{ maxWidth: 280 }}>
-                          <div className="small">
-                            {r.rejectionReason ? (
-                              <span className="text-danger fw-semibold">
-                                Rejection: {r.rejectionReason}
-                              </span>
-                            ) : r.reason ? (
-                              <span className="text-muted">{r.reason}</span>
-                            ) : (
-                              "-"
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+        {/* Stats */}
+        <div className="row g-3 mb-4">
+          <StatCard title="Total Requests" value={counts.total} subtitle="All visible rows" />
+          <StatCard title="Pending" value={counts.pending} subtitle="Awaiting action" tone="Pending" />
+          <StatCard title="Approved" value={counts.approved} subtitle="Ready for next step" tone="Approved" />
+          <StatCard title="Rejected" value={counts.rejected} subtitle="Declined requests" tone="Rejected" />
+          <StatCard title="Checked Out" value={counts.checkedOut} subtitle="Currently out" tone="CheckedOut" />
+          <StatCard title="Returned" value={counts.returned} subtitle="Completed bookings" tone="Returned" />
+          <StatCard title="Overdue" value={counts.overdue} subtitle="Needs attention" tone="Overdue" />
         </div>
+
+        {/* Filters */}
+        <div
+          className="card border-0 shadow-sm mb-4"
+          style={{ borderRadius: "24px", overflow: "hidden" }}
+        >
+          <div className="card-header bg-white border-0 p-4 pb-0">
+            <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
+              <div>
+                <h5 className="fw-bold mb-1">Smart Filters</h5>
+                <div className="text-muted small">
+                  Narrow results by borrower, status, tool, or date range.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card-body p-4">
+            <form onSubmit={onApplyFilters}>
+              <div className="row g-3">
+                <div className="col-12 col-xl-4">
+                  <label className="form-label fw-semibold text-dark">Search</label>
+                  <input
+                    className="form-control dashboard-input"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by student ID, name, or email"
+                  />
+                </div>
+
+                <div className="col-12 col-md-6 col-xl-2">
+                  <label className="form-label fw-semibold text-dark">Status</label>
+                  <select
+                    className="form-select dashboard-input"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                  >
+                    {STATUS_OPTIONS.map((s) => (
+                      <option key={s || "all"} value={s}>
+                        {s ? s : "All statuses"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-12 col-md-6 col-xl-3">
+                  <label className="form-label fw-semibold text-dark">
+                    {isAdmin ? "Tool" : "Owned Tool"}
+                  </label>
+                  <select
+                    className="form-select dashboard-input"
+                    value={itemId}
+                    onChange={(e) => setItemId(e.target.value)}
+                    disabled={itemsLoading}
+                  >
+                    <option value="">All tools</option>
+                    {ownerItems.map((it) => (
+                      <option key={it.item_id} value={it.item_id}>
+                        {it.name}
+                      </option>
+                    ))}
+                  </select>
+                  {itemsLoading && <div className="small text-muted mt-1">Loading tools…</div>}
+                </div>
+
+                <div className="col-6 col-xl-1">
+                  <label className="form-label fw-semibold text-dark">From</label>
+                  <input
+                    className="form-control dashboard-input"
+                    type="date"
+                    value={from}
+                    onChange={(e) => setFrom(e.target.value)}
+                  />
+                </div>
+
+                <div className="col-6 col-xl-1">
+                  <label className="form-label fw-semibold text-dark">To</label>
+                  <input
+                    className="form-control dashboard-input"
+                    type="date"
+                    value={to}
+                    onChange={(e) => setTo(e.target.value)}
+                  />
+                </div>
+
+                <div className="col-12">
+                  <div className="d-flex flex-wrap justify-content-end gap-2 pt-1">
+                    <button
+                      className="btn btn-outline-secondary dashboard-btn"
+                      type="button"
+                      onClick={onClearFilters}
+                    >
+                      Clear
+                    </button>
+
+                    <button className="btn btn-primary dashboard-btn" type="submit">
+                      Apply Filters
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div
+            className="alert alert-danger border-0 shadow-sm"
+            role="alert"
+            style={{ borderRadius: "18px" }}
+          >
+            {error}
+          </div>
+        )}
+
+        {/* Table */}
+        <div
+          className="card border-0 shadow-sm"
+          style={{ borderRadius: "24px", overflow: "hidden" }}
+        >
+          <div className="card-header bg-white border-0 p-4 pb-0">
+            <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+              <div>
+                <h5 className="fw-bold mb-1">History Records</h5>
+                <div className="text-muted small">
+                  Export downloads only the rows currently shown in the table.
+                </div>
+              </div>
+
+              <div className="small text-muted">
+                Showing <span className="fw-semibold text-dark">{requests.length}</span> record{requests.length !== 1 ? "s" : ""}
+              </div>
+            </div>
+          </div>
+
+          <div className="card-body p-0">
+            {loading ? (
+              <div className="p-4 text-muted">Loading booking history...</div>
+            ) : requests.length === 0 ? (
+              <div className="p-5 text-center">
+                <div className="fw-semibold fs-5 mb-2">No records found</div>
+                <div className="text-muted">
+                  {isAdmin
+                    ? "No booking requests found in the system."
+                    : "No booking requests found for your tools."}
+                </div>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table align-middle mb-0">
+                  <thead style={{ background: "#f8fafc" }}>
+                    <tr>
+                      <th className="border-0 px-4 py-3 text-muted fw-semibold">Request ID</th>
+                      <th className="border-0 px-3 py-3 text-muted fw-semibold">Tool</th>
+                      <th className="border-0 px-3 py-3 text-muted fw-semibold">Borrower</th>
+                      <th className="border-0 px-3 py-3 text-muted fw-semibold">Email</th>
+                      <th className="border-0 px-3 py-3 text-muted fw-semibold">Student ID</th>
+                      <th className="border-0 px-3 py-3 text-muted fw-semibold">Start</th>
+                      <th className="border-0 px-3 py-3 text-muted fw-semibold">End</th>
+                      <th className="border-0 px-3 py-3 text-muted fw-semibold">Status</th>
+                      <th className="border-0 px-3 py-3 text-muted fw-semibold">Note</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {requests.map((r) => {
+                      const borrowerName =
+                        `${r.first_name || ""} ${r.last_name || ""}`.trim() ||
+                        r.borrower_username ||
+                        "Unknown";
+
+                      return (
+                        <tr key={r.request_id}>
+                          <td className="px-4 py-3 fw-semibold text-dark">{r.request_id}</td>
+
+                          <td className="px-3 py-3">
+                            <div className="fw-semibold text-dark">{r.item_name}</div>
+                            <div className="small text-muted">Item ID: {r.item_id}</div>
+                          </td>
+
+                          <td className="px-3 py-3">{borrowerName}</td>
+                          <td className="px-3 py-3">{r.borrower_email || "-"}</td>
+                          <td className="px-3 py-3">{r.borrower_student_id || "-"}</td>
+                          <td className="px-3 py-3">{formatDateTime(r.requested_start)}</td>
+                          <td className="px-3 py-3">{formatDateTime(r.requested_end)}</td>
+
+                          <td className="px-3 py-3">
+                            <span
+                              className={`badge px-3 py-2 fw-semibold ${getStatusClass(r.status)}`}
+                              style={{
+                                borderRadius: "999px",
+                                minWidth: "110px",
+                              }}
+                            >
+                              {r.status}
+                            </span>
+                          </td>
+
+                          <td className="px-3 py-3" style={{ maxWidth: 280 }}>
+                            <div className="small">
+                              {r.rejectionReason ? (
+                                <span className="text-danger fw-semibold">
+                                  Rejection: {r.rejectionReason}
+                                </span>
+                              ) : r.reason ? (
+                                <span className="text-muted">{r.reason}</span>
+                              ) : (
+                                "-"
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Local page styling */}
+        <style>{`
+          .dashboard-input {
+            min-height: 48px;
+            border-radius: 14px;
+            border: 1px solid #dbe3ee;
+            background: #ffffff;
+            box-shadow: none;
+            transition: all 0.18s ease;
+          }
+
+          .dashboard-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.12);
+          }
+
+          .dashboard-btn {
+            min-height: 48px;
+            padding: 0 20px;
+            border-radius: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: none;
+          }
+
+          .table tbody tr:hover {
+            background: #f8fbff;
+          }
+
+          .table tbody tr td {
+            border-color: #eef2f7;
+          }
+
+          .table thead th {
+            white-space: nowrap;
+          }
+
+          @media (max-width: 768px) {
+            .dashboard-btn {
+              width: 100%;
+            }
+          }
+        `}</style>
       </div>
     </div>
   );
