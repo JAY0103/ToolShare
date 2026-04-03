@@ -117,10 +117,10 @@ export const itemsService = {
       body: formData,
     }),
 
-  editItem: (item_id, { name, description, category_id }) =>
+  editItem: (item_id, { name, description, category_id, serial_number, quantity }) =>
     apiRequest("/api/edit-item", {
       method: "PUT",
-      body: JSON.stringify({ item_id, name, description, category_id }),
+      body: JSON.stringify({ item_id, name, description, category_id, serial_number, quantity }),
     }),
 
   deleteItem: (id) =>
