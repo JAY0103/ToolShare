@@ -1,4 +1,3 @@
-// src/pages/RequestedBookings.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { bookingsService, API_BASE } from "../services/api";
@@ -89,15 +88,18 @@ const RequestedBookings = () => {
   const badgeClassForStatus = (status) => {
     const s = String(status || "").toLowerCase().trim();
 
-    if (s === "approved") return "bg-success";
-    if (s === "pending") return "bg-warning text-dark";
-    if (s === "checkedout" || s === "checked out") return "bg-primary";
-    if (s === "returned" || s === "return") return "bg-secondary";
-    if (s === "overdue") return "bg-danger";
-    if (s === "rejected") return "bg-danger";
-    if (s === "cancelled" || s === "canceled") return "bg-secondary";
+    if (s === "approved") return "bg-success-subtle text-success border border-success-subtle";
+    if (s === "pending") return "bg-warning-subtle text-warning border border-warning-subtle";
+    if (s === "checkedout" || s === "checked out")
+      return "bg-primary-subtle text-primary border border-primary-subtle";
+    if (s === "returned" || s === "return")
+      return "bg-secondary-subtle text-secondary border border-secondary-subtle";
+    if (s === "overdue") return "bg-danger-subtle text-danger border border-danger-subtle";
+    if (s === "rejected") return "bg-danger-subtle text-danger border border-danger-subtle";
+    if (s === "cancelled" || s === "canceled")
+      return "bg-secondary-subtle text-secondary border border-secondary-subtle";
 
-    return "bg-dark";
+    return "bg-dark text-white";
   };
 
   const normalizeStatus = (status) => {
@@ -143,8 +145,8 @@ const RequestedBookings = () => {
 
   if (!canViewIncoming) {
     return (
-      <div className="container-fluid px-4 py-4">
-        <div className="alert alert-warning">
+      <div className="container-fluid px-3 px-md-4 py-4">
+        <div className="alert alert-warning rounded-4 shadow-sm border-0">
           You don’t have permission to view incoming requests.
         </div>
       </div>
@@ -152,45 +154,59 @@ const RequestedBookings = () => {
   }
 
   if (loading) {
-    return <div className="container-fluid px-4 py-4">Loading incoming requests...</div>;
+    return (
+      <div className="container-fluid px-3 px-md-4 py-4">
+        <div className="d-flex justify-content-center align-items-center py-5">
+          <div className="text-center">
+            <div className="spinner-border text-success mb-3" role="status" />
+            <div className="text-muted fw-semibold">Loading incoming requests...</div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="container-fluid px-4 py-4">
-      <div className="d-flex align-items-start justify-content-between gap-3 flex-wrap">
-        <div>
-          <h2 className="fw-bold mb-2">Incoming Requests</h2>
-          <div className="text-muted mb-3">
-            Showing <strong>{formatFilterLabel(statusFilter)}</strong>
+    <div className="container-fluid px-3 px-md-4 py-4">
+      <div className="bg-white rounded-4 shadow-sm border p-3 p-md-4 mb-4">
+        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+          <div>
+            <h2 className="fw-bold mb-1" style={{ color: "#1f2937" }}>
+              Incoming Requests
+            </h2>
+            <div className="text-muted">
+              Showing <strong>{formatFilterLabel(statusFilter)}</strong>
+            </div>
+          </div>
+
+          <div className="text-muted small">
+            Total: <strong>{filteredRequests.length}</strong>
           </div>
         </div>
-
-        <button onClick={fetchRequests} className="btn btn-outline-primary btn-sm">
-          Refresh
-        </button>
       </div>
 
-      {/* Uniform filter buttons */}
-      <div className="mb-4">
-        <div className="row g-2">
+      <div className="bg-white rounded-4 shadow-sm border p-3 p-md-4 mb-4">
+        <div className="d-flex flex-wrap gap-2">
           {filterOptions.map((item) => (
-            <div key={item.value} className="col-6 col-md-3 col-lg-2">
-              <button
-                type="button"
-                className={`btn w-100 ${
-                  statusFilter === item.value ? "btn-dark" : "btn-outline-dark"
-                }`}
-                onClick={() => setStatusFilter(item.value)}
-              >
-                {item.label}
-              </button>
-            </div>
+            <button
+              key={item.value}
+              type="button"
+              className={`btn rounded-pill px-3 ${
+                statusFilter === item.value ? "btn-dark" : "btn-outline-secondary"
+              }`}
+              onClick={() => setStatusFilter(item.value)}
+            >
+              {item.label}
+            </button>
           ))}
         </div>
       </div>
 
       {filteredRequests.length === 0 ? (
-        <div className="alert alert-info text-center">No requests found for this filter.</div>
+        <div className="bg-white rounded-4 shadow-sm border p-5 text-center">
+          <div className="mb-2 fs-5 fw-semibold text-dark">No requests found</div>
+          <div className="text-muted">There are no requests available for this filter.</div>
+        </div>
       ) : (
         <div className="row g-4">
           {filteredRequests.map((req) => {
@@ -205,74 +221,104 @@ const RequestedBookings = () => {
             const noteFromServer = req.rejectionReason || req.decision_note || "";
 
             return (
-              <div key={req.request_id} className="col-md-6 col-lg-4">
-                <div className="item-card shadow-sm h-100">
-                  <div className="img-frame">
+              <div key={req.request_id} className="col-12 col-md-6 col-xl-4">
+                <div
+                  className="card border-0 shadow-sm h-100 rounded-4 overflow-hidden"
+                  style={{ backgroundColor: "#ffffff" }}
+                >
+                  <div
+                    className="position-relative"
+                    style={{
+                      height: "220px",
+                      background: "linear-gradient(135deg, #f8f9fa, #eef2f7)",
+                    }}
+                  >
                     <img
                       src={getImageUrl(req.image_url)}
                       alt={req.item_name || "Tool image"}
+                      className="w-100 h-100"
+                      style={{ objectFit: "contain", padding: "12px" }}
                       onError={(e) => {
                         e.currentTarget.src =
                           "https://via.placeholder.com/400x250?text=Image+Not+Found";
                       }}
                     />
-                  </div>
 
-                  <div className="card-body d-flex flex-column">
-                    <div className="d-flex justify-content-between align-items-start gap-2">
-                      <h5 className="card-title mb-2">{req.item_name}</h5>
-                      <span className={`badge ${badgeClassForStatus(rawStatus)}`}>
+                    <div className="position-absolute top-0 end-0 p-3">
+                      <span className={`badge rounded-pill px-3 py-2 ${badgeClassForStatus(rawStatus)}`}>
                         {rawStatus}
                       </span>
                     </div>
+                  </div>
 
-                    {req.request_group_id ? (
-                      <div className="text-muted small mb-2">
-                        <strong>Basket Group:</strong> #{req.request_group_id}
+                  <div className="card-body d-flex flex-column p-4">
+                    <div className="mb-3">
+                      <h5 className="fw-bold mb-1 text-dark">{req.item_name}</h5>
+                      {req.request_group_id ? (
+                        <div className="text-muted small">
+                          Basket Group: <strong>#{req.request_group_id}</strong>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="mb-3">
+                      <div className="mb-2">
+                        <span className="text-muted small d-block">Requester</span>
+                        <span className="fw-semibold text-dark">{requesterName}</span>
                       </div>
-                    ) : null}
 
-                    <p className="mb-1">
-                      <strong>Requester:</strong> {requesterName}
-                    </p>
+                      <div className="mb-2">
+                        <span className="text-muted small d-block">From</span>
+                        <span className="text-dark">
+                          {req.requested_start
+                            ? new Date(req.requested_start).toLocaleString()
+                            : "—"}
+                        </span>
+                      </div>
 
-                    <p className="mb-1">
-                      <strong>From:</strong>{" "}
-                      {req.requested_start ? new Date(req.requested_start).toLocaleString() : "—"}
-                    </p>
+                      <div className="mb-2">
+                        <span className="text-muted small d-block">To</span>
+                        <span className="text-dark">
+                          {req.requested_end
+                            ? new Date(req.requested_end).toLocaleString()
+                            : "—"}
+                        </span>
+                      </div>
 
-                    <p className="mb-1">
-                      <strong>To:</strong>{" "}
-                      {req.requested_end ? new Date(req.requested_end).toLocaleString() : "—"}
-                    </p>
+                      <div className="mb-2">
+                        <span className="text-muted small d-block">Reason</span>
+                        <span className="text-dark">{req.reason || "—"}</span>
+                      </div>
 
-                    <p className="mb-2">
-                      <strong>Reason:</strong> {req.reason || "—"}
-                    </p>
+                      {req.checked_out_at && (
+                        <div className="mb-2">
+                          <span className="text-muted small d-block">Checked out</span>
+                          <span className="text-dark">
+                            {new Date(req.checked_out_at).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
 
-                    {req.checked_out_at && (
-                      <p className="mb-1">
-                        <strong>Checked out:</strong>{" "}
-                        {new Date(req.checked_out_at).toLocaleString()}
-                      </p>
-                    )}
-
-                    {req.returned_at && (
-                      <p className="mb-1">
-                        <strong>Returned:</strong> {new Date(req.returned_at).toLocaleString()}
-                      </p>
-                    )}
+                      {req.returned_at && (
+                        <div className="mb-2">
+                          <span className="text-muted small d-block">Returned</span>
+                          <span className="text-dark">
+                            {new Date(req.returned_at).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
                     {status === "pending" && rejectingId === req.request_id && (
-                      <div className="mb-2">
-                        <label className="form-label mb-1">
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold mb-1">
                           Rejection reason <span className="text-danger">*</span>
                         </label>
-                        <div className="small text-muted mb-1">
+                        <div className="small text-muted mb-2">
                           This message will be sent to the requester.
                         </div>
                         <textarea
-                          className="form-control"
+                          className="form-control rounded-3"
                           rows={3}
                           placeholder="Example: Tool is needed for another lab session during this time…"
                           value={notes[req.request_id] || ""}
@@ -287,79 +333,81 @@ const RequestedBookings = () => {
                     )}
 
                     {status !== "pending" && noteFromServer && (
-                      <div className="alert alert-info py-2 mt-2 mb-2">
+                      <div className="alert alert-light border rounded-3 py-2 px-3 mt-1 mb-3">
                         <strong>Message to requester:</strong> {noteFromServer}
                       </div>
                     )}
 
-                    <div className="mt-auto d-flex gap-2">
-                      {status === "pending" ? (
-                        rejectingId === req.request_id ? (
-                          <>
-                            <button
-                              onClick={() => handleReject(req.request_id)}
-                              className="btn btn-danger btn-sm flex-fill"
-                            >
-                              Confirm Reject
-                            </button>
-                            <button
-                              onClick={() => setRejectingId(null)}
-                              className="btn btn-outline-secondary btn-sm flex-fill"
-                            >
-                              Cancel
-                            </button>
-                          </>
+                    <div className="mt-auto pt-2">
+                      <div className="d-grid gap-2">
+                        {status === "pending" ? (
+                          rejectingId === req.request_id ? (
+                            <div className="d-flex gap-2">
+                              <button
+                                onClick={() => handleReject(req.request_id)}
+                                className="btn btn-danger flex-fill rounded-3"
+                              >
+                                Confirm Reject
+                              </button>
+                              <button
+                                onClick={() => setRejectingId(null)}
+                                className="btn btn-outline-secondary flex-fill rounded-3"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="d-flex gap-2">
+                              <button
+                                onClick={() => handleApprove(req.request_id)}
+                                className="btn btn-success flex-fill rounded-3"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => setRejectingId(req.request_id)}
+                                className="btn btn-outline-danger flex-fill rounded-3"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )
+                        ) : status === "approved" ? (
+                          <button
+                            onClick={() =>
+                              navigate("/edit-condition-images", {
+                                state: {
+                                  requestId: req.request_id,
+                                  mode: "checkout",
+                                },
+                              })
+                            }
+                            className="btn btn-primary rounded-3"
+                          >
+                            Check Out
+                          </button>
+                        ) : status === "checkedout" || status === "overdue" ? (
+                          <button
+                            onClick={() =>
+                              navigate("/edit-condition-images", {
+                                state: {
+                                  requestId: req.request_id,
+                                  mode: "return",
+                                },
+                              })
+                            }
+                            className={`btn rounded-3 ${
+                              status === "overdue" ? "btn-danger" : "btn-warning"
+                            }`}
+                          >
+                            Return
+                          </button>
                         ) : (
-                          <>
-                            <button
-                              onClick={() => handleApprove(req.request_id)}
-                              className="btn btn-success btn-sm flex-fill"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => setRejectingId(req.request_id)}
-                              className="btn btn-danger btn-sm flex-fill"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )
-                      ) : status === "approved" ? (
-                        <button
-                          onClick={() =>
-                            navigate("/edit-condition-images", {
-                              state: {
-                                requestId: req.request_id,
-                                mode: "checkout",
-                              },
-                            })
-                          }
-                          className="btn btn-primary btn-sm flex-fill"
-                        >
-                          Check Out
-                        </button>
-                      ) : status === "checkedout" || status === "overdue" ? (
-                        <button
-                          onClick={() =>
-                            navigate("/edit-condition-images", {
-                              state: {
-                                requestId: req.request_id,
-                                mode: "return",
-                              },
-                            })
-                          }
-                          className={`btn btn-sm flex-fill ${
-                            status === "overdue" ? "btn-danger" : "btn-warning"
-                          }`}
-                        >
-                          Return
-                        </button>
-                      ) : (
-                        <button className="btn btn-outline-secondary btn-sm flex-fill" disabled>
-                          No actions available
-                        </button>
-                      )}
+                          <button className="btn btn-outline-secondary rounded-3" disabled>
+                            No actions available
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
