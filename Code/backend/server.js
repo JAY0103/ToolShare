@@ -1829,6 +1829,33 @@ app.delete("/api/admin/users/:id", authenticateToken, async (req, res) => {
 });
 
 // -------------------- ADMIN: CATEGORIES --------------------
+
+app.post("/api/admin/categories", authenticateToken, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Admin only" });
+
+  const { name, description } = req.body;
+
+  if (!name || !String(name).trim()) {
+    return res.status(400).json({ error: "Category name is required." });
+  }
+
+  try {
+    await query(
+      `INSERT INTO categories (name, description) VALUES (?, ?)`,
+      [String(name).trim(), description || null]
+    );
+
+    res.json({ message: "Category created" });
+  } catch (err) {
+    if (err?.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ error: "Category already exists." });
+    }
+
+    console.error("admin create category error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 app.delete("/api/admin/categories/:id", authenticateToken, async (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: "Admin only" });
   const categoryId = Number(req.params.id);
