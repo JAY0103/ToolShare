@@ -100,7 +100,7 @@ function App() {
             element={isFacultyOrAdmin ? <RequestedBookings /> : <Navigate to="/home" />}
           />
           <Route
-            path="/edit-item/:id"
+            path="/edit-item"
             element={isFacultyOrAdmin ? <EditItem /> : <Navigate to="/home" />}
           />
           <Route
