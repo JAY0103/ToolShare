@@ -412,20 +412,23 @@ const OwnerBookingHistory = () => {
                   />
                 </div>
 
-                <div className="col-12">
-                  <div className="d-flex gap-2">
-                    <button
-                      className="btn btn-outline-secondary dashboard-btn"
-                      type="button"
-                      onClick={onClearFilters}
-                    >
-                      Clear
-                    </button>
+                <div className="col-12 col-xl-1 d-flex align-items-end">
+                  <button
+                    className="btn btn-outline-secondary dashboard-btn w-100"
+                    type="button"
+                    onClick={onClearFilters}
+                  >
+                    Clear
+                  </button>
+                </div>
 
-                    <button className="btn btn-primary dashboard-btn" type="submit">
-                      Apply Filters
-                    </button>
-                  </div>
+                <div className="col-12 col-xl-1 d-flex align-items-end">
+                  <button
+                    className="btn btn-primary dashboard-btn w-100"
+                    type="submit"
+                  >
+                    Apply
+                  </button>
                 </div>
               </div>
             </form>
