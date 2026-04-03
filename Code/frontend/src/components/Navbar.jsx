@@ -46,9 +46,7 @@ const Navbar = () => {
       const data = await notificationsService.getNotifications();
       setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
       setUnreadCount(Number(data.unreadCount || 0));
-    } catch {
-      // silent fail to preserve current behavior
-    }
+    } catch {}
   };
 
   useEffect(() => {
@@ -139,56 +137,41 @@ const Navbar = () => {
       <div
         className="text-white"
         style={{
-          background: "linear-gradient(135deg, #007847 0%, #0a8f57 100%)",
-          boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+          backgroundColor: "#007847",
+          borderBottom: "1px solid rgba(255,255,255,0.1)",
         }}
       >
-        <div className="container-fluid px-3 px-md-4 py-3">
-          <div className="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+        <div className="container-fluid px-3 px-md-4">
+          <div
+            className="d-flex align-items-center justify-content-between"
+            style={{ minHeight: "68px" }}
+          >
             <div
               role="button"
               onClick={() => go("/home")}
-              className="d-flex align-items-center gap-3"
-              style={{ cursor: "pointer" }}
+              style={{
+                cursor: "pointer",
+                fontSize: "1.8rem",
+                fontWeight: "700",
+                letterSpacing: "-0.3px",
+              }}
             >
-              <div
-                className="d-flex align-items-center justify-content-center bg-white text-success fw-bold"
-                style={{
-                  width: 46,
-                  height: 46,
-                  borderRadius: 14,
-                  fontSize: "1.1rem",
-                  boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
-                }}
-              >
-                TS
-              </div>
-
-              <div>
-                <div
-                  className="fw-bold lh-sm"
-                  style={{
-                    fontSize: "clamp(1.35rem, 2vw, 2rem)",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  ToolShare
-                </div>
-                <div className="small text-white-50">
-                  Equipment booking and management
-                </div>
-              </div>
+              ToolShare
             </div>
 
             {user && (
-              <div className="d-none d-md-flex align-items-center gap-2">
-                <span
-                  className="badge rounded-pill text-bg-light px-3 py-2"
-                  style={{ fontSize: "0.85rem" }}
-                >
-                  {roleLabel}
-                </span>
-              </div>
+              <span
+                className="badge rounded-pill"
+                style={{
+                  backgroundColor: "#ffffff",
+                  color: "#1f2937",
+                  padding: "8px 14px",
+                  fontSize: "0.8rem",
+                  fontWeight: "600",
+                }}
+              >
+                {roleLabel}
+              </span>
             )}
           </div>
         </div>
