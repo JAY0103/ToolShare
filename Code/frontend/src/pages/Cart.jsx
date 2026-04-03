@@ -205,35 +205,33 @@ const Cart = () => {
         <>
           <div className="card border-0 shadow-sm rounded-4 mb-4">
             <div className="card-body p-4 p-md-4">
-              <div className="row g-4 align-items-start">
-                <div className="col-12 col-lg-7">
-                  <label className="form-label fw-bold mb-2">Reason for this request</label>
-                  <textarea
-                    className="form-control rounded-3"
-                    rows={4}
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="Example: Need these tools for lab work, project testing, or course assignment..."
-                  />
-                </div>
+              <div className="mb-4">
+                <label className="form-label fw-bold mb-2">Reason for this request</label>
+                <textarea
+                  className="form-control rounded-3"
+                  rows={4}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Example: Need these tools for lab work, project testing, or course assignment..."
+                />
+              </div>
 
-                <div className="col-12 col-lg-5">
-                  <div className="border rounded-4 p-3 bg-light h-100">
-                    <div className="fw-semibold mb-2">Request Summary</div>
-                    <div className="text-muted small mb-2">
-                      Total selected: <strong>{basketCount}</strong>
-                    </div>
-
-                    {summary?.missing > 0 ? (
-                      <div className="alert alert-warning rounded-3 py-2 px-3 mb-0 small">
-                        You still need to set dates for <strong>{summary.missing}</strong> item(s).
-                      </div>
-                    ) : (
-                      <div className="alert alert-success rounded-3 py-2 px-3 mb-0 small">
-                        All selected items have date and time values entered.
-                      </div>
-                    )}
+              <div className="mb-4">
+                <div className="border rounded-4 p-3 bg-light">
+                  <div className="fw-semibold mb-2">Request Summary</div>
+                  <div className="text-muted small mb-2">
+                    Total selected: <strong>{basketCount}</strong>
                   </div>
+
+                  {summary?.missing > 0 ? (
+                    <div className="alert alert-warning rounded-3 py-2 px-3 mb-0 small">
+                      You still need to set dates for <strong>{summary.missing}</strong> item(s).
+                    </div>
+                  ) : (
+                    <div className="alert alert-success rounded-3 py-2 px-3 mb-0 small">
+                      All selected items have date and time values entered.
+                    </div>
+                  )}
                 </div>
               </div>
 
