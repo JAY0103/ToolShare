@@ -642,8 +642,12 @@ app.get("/api/items/availability", authenticateToken, async (req, res) => {
 });
 
 app.put("/api/edit-item", authenticateToken, async (req, res) => {
-  const { item_id, name, description, category_id, owner_ids } = req.body;
+  const { item_id, name, description, category_id, serial_number, quantity } = req.body;
   if (!item_id || !name) return res.status(400).json({ error: "Item ID and name are required." });
+
+  if (quantity !== undefined && (isNaN(Number(quantity)) || Number(quantity) < 0)) {
+    return res.status(400).json({ error: "Quantity must be a non-negative number." });
+  }
 
   try {
     // Check permissions: admin can edit anything, tool owners can edit their own items
@@ -656,31 +660,15 @@ app.put("/api/edit-item", authenticateToken, async (req, res) => {
     }
 
     const catId = category_id ? Number(category_id) : null;
+    const qty = quantity !== undefined ? Number(quantity) : null;
 
     // Update item details
     await query(
       `UPDATE items
-       SET name = ?, description = ?, category_id = ?
+       SET name = ?, description = ?, category_id = ?, serial_number = ?, quantity = ?
        WHERE item_id = ?`,
-      [name, description || null, catId || null, item_id]
+      [name, description || null, catId || null, serial_number || null, qty, item_id]
     );
-
-    // Sync item_owners if owner_ids is provided
-    if (Array.isArray(owner_ids)) {
-      // Delete existing owners not in the new list
-      await query(
-        `DELETE FROM item_owners WHERE item_id = ? AND user_id NOT IN (?)`,
-        [item_id, owner_ids.length ? owner_ids : [0]] // [0] to avoid SQL syntax error on empty array
-      );
-
-      // Insert new owners (ignore duplicates)
-      for (const userId of owner_ids) {
-        await query(
-          `INSERT IGNORE INTO item_owners (item_id, user_id) VALUES (?, ?)`,
-          [item_id, userId]
-        );
-      }
-    }
 
     res.json({ message: "Item updated successfully" });
   } catch (err) {
@@ -689,9 +677,7 @@ app.put("/api/edit-item", authenticateToken, async (req, res) => {
   }
 });
 
-
 // -------------------- BORROW / BOOKINGS --------------------
-
 
 app.post("/api/book-item", authenticateToken, async (req, res) => {
   const { item_id, requested_start, requested_end, reason } = req.body;
@@ -874,7 +860,11 @@ app.post("/api/request-group", authenticateToken, async (req, res) => {
         continue;
       }
 
-      const status = itemMeta.category_id === 4 ? "Approved" : "Pending";
+      const autoApproveRows = await query(
+        `SELECT auto_approve FROM categories WHERE category_id = ? LIMIT 1`,
+        [itemMeta.category_id]
+      );
+      const status = autoApproveRows[0]?.auto_approve ? "Approved" : "Pending";
 
       const ins = await query(
         `INSERT INTO borrowrequests
@@ -943,7 +933,7 @@ app.post(
 
       // fetch item_id from borrowrequests
       const [borrowRequest] = await query(
-        "SELECT item_id FROM borrowrequests WHERE request_id = ?",
+        "SELECT request_id,item_id FROM borrowrequests WHERE request_id = ?",
         [borrowRequestId]
       );
 
@@ -1171,6 +1161,7 @@ app.get("/api/item-requests", authenticateToken, async (req, res) => {
              br.reason, br.rejectionReason,
              br.request_group_id,
              br.checked_out_at, br.returned_at,
+             br.created_at,
              i.name AS item_name, i.image_url,
              u.first_name, u.last_name, u.username AS borrower_name
       FROM borrowrequests br
