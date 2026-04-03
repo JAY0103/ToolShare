@@ -1,4 +1,3 @@
-// frontend/src/pages/OwnerBookingHistory.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { bookingsService } from "../services/api";
 import { useNavigate } from "react-router-dom";
@@ -346,7 +345,7 @@ const OwnerBookingHistory = () => {
 
           <div className="card-body p-4">
             <form onSubmit={onApplyFilters}>
-              <div className="row g-3">
+              <div className="row g-3 align-items-end">
                 <div className="col-12 col-xl-4">
                   <label className="form-label fw-semibold text-dark">Search</label>
                   <input
@@ -392,7 +391,7 @@ const OwnerBookingHistory = () => {
                   {itemsLoading && <div className="small text-muted mt-1">Loading tools…</div>}
                 </div>
 
-                <div className="col-6 col-xl-1">
+                <div className="col-12 col-sm-6 col-xl-1 date-col">
                   <label className="form-label fw-semibold text-dark">From</label>
                   <input
                     className="form-control dashboard-input"
@@ -402,7 +401,7 @@ const OwnerBookingHistory = () => {
                   />
                 </div>
 
-                <div className="col-6 col-xl-1">
+                <div className="col-12 col-sm-6 col-xl-1 date-col">
                   <label className="form-label fw-semibold text-dark">To</label>
                   <input
                     className="form-control dashboard-input"
@@ -412,23 +411,20 @@ const OwnerBookingHistory = () => {
                   />
                 </div>
 
-                <div className="col-12 col-xl-1 d-flex align-items-end">
-                  <button
-                    className="btn btn-outline-secondary dashboard-btn w-100"
-                    type="button"
-                    onClick={onClearFilters}
-                  >
-                    Clear
-                  </button>
-                </div>
+                <div className="col-12 col-xl-auto ms-xl-auto">
+                  <div className="d-flex gap-2 history-filter-actions">
+                    <button
+                      className="btn btn-outline-secondary dashboard-btn"
+                      type="button"
+                      onClick={onClearFilters}
+                    >
+                      Clear
+                    </button>
 
-                <div className="col-12 col-xl-1 d-flex align-items-end">
-                  <button
-                    className="btn btn-primary dashboard-btn w-100"
-                    type="submit"
-                  >
-                    Apply
-                  </button>
+                    <button className="btn btn-primary dashboard-btn" type="submit">
+                      Apply Filters
+                    </button>
+                  </div>
                 </div>
               </div>
             </form>
@@ -576,6 +572,22 @@ const OwnerBookingHistory = () => {
             align-items: center;
             justify-content: center;
             box-shadow: none;
+            white-space: nowrap;
+          }
+
+          .date-col {
+            min-width: 150px;
+          }
+
+          .history-filter-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: nowrap;
+          }
+
+          .history-filter-actions .dashboard-btn {
+            min-width: 130px;
           }
 
           .table tbody tr:hover {
@@ -588,6 +600,23 @@ const OwnerBookingHistory = () => {
 
           .table thead th {
             white-space: nowrap;
+          }
+
+          @media (max-width: 1199.98px) {
+            .date-col {
+              min-width: 0;
+            }
+
+            .history-filter-actions {
+              width: 100%;
+              justify-content: stretch;
+              flex-wrap: wrap;
+            }
+
+            .history-filter-actions .dashboard-btn {
+              flex: 1 1 0;
+              min-width: 0;
+            }
           }
 
           @media (max-width: 768px) {
