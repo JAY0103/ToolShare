@@ -571,16 +571,195 @@ const Home = () => {
   }, [adminRequests, isAdmin]);
 
   return (
-    <div className="container-fluid px-4 py-4">
-      <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
-        <div>
-          <h2 className="fw-bold mb-1">
-            Welcome{user?.first_name ? `, ${user.first_name}` : ""}
-          </h2>
+    <div className="container-fluid px-3 px-md-4 py-4 home-dashboard">
+      
+      <style>{`
+        .home-dashboard {
+          --ts-border: #e9ecef;
+          --ts-soft: #f8f9fa;
+          --ts-text-soft: #6c757d;
+        }
 
-          <span className={`badge ${isAdmin ? "bg-dark" : isStaff ? "bg-warning text-dark" : "bg-success"}`}>
-            {isAdmin ? "Admin Dashboard" : isStaff ? "Faculty Dashboard" : "Student Dashboard"}
-          </span>
+        .home-dashboard .dashboard-hero {
+          background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+          border: 1px solid var(--ts-border);
+          border-radius: 22px;
+          padding: 1.25rem 1.4rem;
+          box-shadow: 0 10px 30px rgba(16, 24, 40, 0.06);
+          margin-bottom: 1.25rem;
+        }
+
+        .home-dashboard .dashboard-card {
+          border: 1px solid var(--ts-border);
+          border-radius: 20px;
+          box-shadow: 0 10px 30px rgba(16, 24, 40, 0.05) !important;
+          background: #fff;
+        }
+
+        .home-dashboard .dashboard-card .card {
+          border-radius: 16px;
+          border: 1px solid var(--ts-border);
+          box-shadow: none !important;
+        }
+
+        .home-dashboard .section-title {
+          font-size: 1.1rem;
+          letter-spacing: -0.02em;
+        }
+
+        .home-dashboard .section-subtitle {
+          color: var(--ts-text-soft);
+          font-size: 0.88rem;
+        }
+
+        .home-dashboard .dashboard-table {
+          --bs-table-bg: transparent;
+          margin-bottom: 0;
+        }
+
+        .home-dashboard .dashboard-table thead th {
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          color: #6c757d;
+          border-bottom-width: 1px;
+          white-space: nowrap;
+        }
+
+        .home-dashboard .dashboard-table tbody td {
+          vertical-align: middle;
+          padding-top: 0.9rem;
+          padding-bottom: 0.9rem;
+          border-color: #f1f3f5;
+        }
+
+        .home-dashboard .dashboard-table tbody tr:last-child td {
+          border-bottom: 0;
+        }
+
+        .home-dashboard .table-responsive {
+          border: 1px solid #f1f3f5;
+          border-radius: 16px;
+          overflow: hidden;
+          background: #fff;
+        }
+
+        .home-dashboard .alert {
+          border-radius: 14px;
+          border-width: 1px;
+        }
+
+        .home-dashboard .badge {
+          border-radius: 999px;
+          padding: 0.5rem 0.75rem;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+        }
+
+        .home-dashboard .btn {
+          border-radius: 12px;
+          font-weight: 700;
+          box-shadow: none !important;
+        }
+
+        .home-dashboard .btn-sm {
+          padding: 0.48rem 0.85rem;
+        }
+
+        .home-dashboard .muted-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.45rem 0.75rem;
+          border-radius: 999px;
+          background: var(--ts-soft);
+          color: #495057;
+          font-size: 0.82rem;
+          border: 1px solid var(--ts-border);
+        }
+
+        .home-dashboard .items-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 1rem;
+        }
+
+        .home-dashboard .item-card {
+          background: #fff;
+          border: 1px solid var(--ts-border);
+          border-radius: 20px;
+          padding: 0.95rem;
+          transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .home-dashboard .item-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 14px 30px rgba(16, 24, 40, 0.08) !important;
+        }
+
+        .home-dashboard .img-frame {
+          border-radius: 16px;
+          overflow: hidden;
+          background: #f8f9fa;
+          aspect-ratio: 16 / 10;
+          margin-bottom: 0.75rem;
+          border: 1px solid #edf0f2;
+        }
+
+        .home-dashboard .img-frame img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .home-dashboard .item-card p {
+          min-height: 44px;
+        }
+
+        .home-dashboard .dashboard-empty {
+          border: 1px dashed var(--ts-border);
+          border-radius: 16px;
+          padding: 1rem;
+          background: #fcfcfd;
+          color: var(--ts-text-soft);
+        }
+
+        @media (max-width: 767.98px) {
+          .home-dashboard .dashboard-hero {
+            padding: 1rem;
+          }
+
+          .home-dashboard .table-responsive {
+            border-radius: 14px;
+          }
+        }
+      `}</style>
+
+      <div className="dashboard-hero d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+          <div className="d-flex flex-column gap-2">
+            <h2 className="fw-bold mb-0">
+              Welcome{user?.first_name ? `, ${user.first_name}` : ""}
+            </h2>
+            <div className="section-subtitle">
+              {isAdmin
+                ? "Manage approvals, overdue tools, and activity from one place."
+                : isStaff
+                  ? "Review incoming requests and stay on top of today’s pickups and returns."
+                  : "Track your bookings and discover tools you may want to request next."}
+            </div>
+          </div>
+
+          <div className="d-flex flex-wrap gap-2 align-items-center">
+            <span className={`badge ${isAdmin ? "bg-dark" : isStaff ? "bg-warning text-dark" : "bg-success"}`}>
+              {isAdmin ? "Admin Dashboard" : isStaff ? "Faculty Dashboard" : "Student Dashboard"}
+            </span>
+            <span className="muted-chip">
+              <i className="bi bi-grid-1x2"></i>
+              ToolShare Overview
+            </span>
+          </div>
         </div>
       </div>
 
@@ -597,12 +776,12 @@ const Home = () => {
     )}
 
     {loading ? (
-      <div className="text-center py-5">Loading dashboard...</div>
+      <div className="dashboard-empty text-center py-5">Loading dashboard...</div>
     ) : isAdmin ? (
         <>
           <div className="row g-3 mb-4">
             <div className="col-12 col-lg-6">
-              <div className="card p-3 shadow-sm h-100">
+              <div className="card dashboard-card p-3 shadow-sm h-100">
                 <div className="d-flex justify-content-between align-items-center mb-2 gap-2">
                   <div>
                     <h5 className="fw-bold mb-0">
@@ -626,7 +805,7 @@ const Home = () => {
                   <div className="alert alert-info mb-0">No pending approvals</div>
                 ) : (
                   <div className="table-responsive">
-                    <table className="table align-middle mb-0">
+                    <table className="table dashboard-table align-middle mb-0">
                       <thead>
                         <tr>
                           <th>Tool</th>
@@ -675,7 +854,7 @@ const Home = () => {
             </div>
 
             <div className="col-12 col-lg-6">
-              <div className="card p-3 shadow-sm h-100">
+              <div className="card dashboard-card p-3 shadow-sm h-100">
                 <div className="d-flex justify-content-between align-items-center mb-2 gap-2">
                   <div>
                     <h5 className="fw-bold mb-0">
@@ -699,7 +878,7 @@ const Home = () => {
                   <div className="alert alert-info mb-0">No overdue items</div>
                 ) : (
                   <div className="table-responsive">
-                    <table className="table align-middle mb-0">
+                    <table className="table dashboard-table align-middle mb-0">
                       <thead>
                         <tr>
                           <th>Tool</th>
@@ -739,7 +918,7 @@ const Home = () => {
 
           <div className="row g-3 mb-4">
             <div className="col-12 col-lg-6">
-              <div className="card p-3 shadow-sm h-100">
+              <div className="card dashboard-card p-3 shadow-sm h-100">
                 <h5 className="fw-bold mb-0">
                   <i className="bi bi-box-seam me-2"></i>
                   Pickups Today
@@ -750,7 +929,7 @@ const Home = () => {
                   <div className="alert alert-info mb-0">No pickups today.</div>
                 ) : (
                   <div className="table-responsive">
-                    <table className="table align-middle mb-0">
+                    <table className="table dashboard-table align-middle mb-0">
                       <thead>
                         <tr>
                           <th>Tool</th>
@@ -790,7 +969,7 @@ const Home = () => {
             </div>
 
             <div className="col-12 col-lg-6">
-              <div className="card p-3 shadow-sm h-100">
+              <div className="card dashboard-card p-3 shadow-sm h-100">
                 <h5 className="fw-bold mb-0">
                   <i className="bi bi-arrow-return-left me-2"></i>
                   Due Today
@@ -801,7 +980,7 @@ const Home = () => {
                   <div className="alert alert-info mb-0">No returns due today.</div>
                 ) : (
                   <div className="table-responsive">
-                    <table className="table align-middle mb-0">
+                    <table className="table dashboard-table align-middle mb-0">
                       <thead>
                         <tr>
                           <th>Tool</th>
@@ -846,9 +1025,9 @@ const Home = () => {
             </div>
           </div>
 
-          <div className="card p-3 shadow-sm">
+          <div className="card dashboard-card p-3 shadow-sm">
             <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-              <h5 className="fw-bold mb-0">Reports</h5>
+              <h5 className="fw-bold section-title mb-0">Reports</h5>
               <button className="btn btn-outline-dark fw-bold btn-sm" onClick={() => exportRequestsCSV(adminRequests)}>
                 <i className="bi bi-download me-2"></i>
                 Export CSV
@@ -868,7 +1047,7 @@ const Home = () => {
                       ))}
                     </ol>
                   ) : (
-                    <div className="text-muted">No data yet.</div>
+                    <div className="dashboard-empty">No data yet.</div>
                   )}
                 </div>
               </div>
@@ -886,7 +1065,7 @@ const Home = () => {
                       ))}
                     </ol>
                   ) : (
-                    <div className="text-muted">No data yet.</div>
+                    <div className="dashboard-empty">No data yet.</div>
                   )}
                 </div>
               </div>
@@ -895,19 +1074,19 @@ const Home = () => {
         </>
       ) : !isStaff ? (
         <>
-          <div className="card p-3 shadow-sm mb-4">
+          <div className="card dashboard-card p-3 shadow-sm mb-4">
             <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-              <h5 className="fw-bold mb-0">Recent Bookings</h5>
+              <h5 className="fw-bold section-title mb-0">Recent Bookings</h5>
               <button className="btn btn-outline-dark fw-bold btn-sm" onClick={() => navigate("/my-bookings")}>
                 View All
               </button>
             </div>
 
             {safeArr(myRequests).length === 0 ? (
-              <div className="text-muted mt-2">You don’t have any bookings yet. Browse tools and request one.</div>
+              <div className="dashboard-empty mt-3">You don’t have any bookings yet. Browse tools and request one.</div>
             ) : (
               <div className="mt-3 table-responsive">
-                <table className="table align-middle mb-0">
+                <table className="table dashboard-table align-middle mb-0">
                   <thead>
                     <tr>
                       <th>Tool</th>
@@ -967,7 +1146,7 @@ const Home = () => {
 
           <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
             <div>
-              <h4 className="fw-bold mb-0">Recommended for you</h4>
+              <h4 className="fw-bold section-title mb-0">Recommended for you</h4>
               <span className="text-muted small">Based on your previous bookings</span>
             </div>
           </div>
@@ -977,7 +1156,7 @@ const Home = () => {
           ) : (
             <div className="items-grid">
               {displayedRecommended.map((item) => (
-                <div key={item.item_id} className="item-card shadow-sm">
+                <div key={item.item_id} className="item-card shadow-sm border-0">
                   <div className="img-frame">
                     <img
                       src={getImageSrc(item.image_url)}
@@ -1005,7 +1184,7 @@ const Home = () => {
         <>
           <div className="row g-3">
             <div className="col-12">
-              <div className="card p-3 shadow-sm">
+              <div className="card dashboard-card p-3 shadow-sm">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <div>
                     <h5 className="fw-bold mb-0">
@@ -1019,7 +1198,7 @@ const Home = () => {
                   <div className="alert alert-info mt-3 mb-0">No pending requests.</div>
                 ) : (
                   <div className="table-responsive mt-3">
-                    <table className="table align-middle mb-0">
+                    <table className="table dashboard-table align-middle mb-0">
                       <thead>
                         <tr>
                           <th>Tool</th>
@@ -1086,7 +1265,7 @@ const Home = () => {
             </div>
 
             <div className="col-12 col-lg-6">
-              <div className="card p-3 shadow-sm h-100">
+              <div className="card dashboard-card p-3 shadow-sm h-100">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <div>
                     <h5 className="fw-bold mb-0">
@@ -1100,7 +1279,7 @@ const Home = () => {
                   <div className="alert alert-info mt-3 mb-0">No pickups scheduled for today.</div>
                 ) : (
                   <div className="table-responsive mt-3">
-                    <table className="table align-middle mb-0">
+                    <table className="table dashboard-table align-middle mb-0">
                       <thead>
                         <tr>
                           <th>Tool</th>
@@ -1142,7 +1321,7 @@ const Home = () => {
             </div>
 
             <div className="col-12 col-lg-6">
-              <div className="card p-3 shadow-sm h-100">
+              <div className="card dashboard-card p-3 shadow-sm h-100">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <div>
                     <h5 className="fw-bold mb-0">
@@ -1156,7 +1335,7 @@ const Home = () => {
                   <div className="alert alert-info mt-3 mb-0">No returns due today.</div>
                 ) : (
                   <div className="table-responsive mt-3">
-                    <table className="table align-middle mb-0">
+                    <table className="table dashboard-table align-middle mb-0">
                       <thead>
                         <tr>
                           <th>Tool</th>
