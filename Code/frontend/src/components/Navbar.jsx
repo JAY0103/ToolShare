@@ -133,47 +133,26 @@ const Navbar = () => {
 
   return (
     <div className="sticky-top" style={{ zIndex: 1040 }}>
-      {/* Brand Header */}
+      {/* Header */}
       <div
-        className="text-white"
+        className="text-white text-center"
         style={{
           backgroundColor: "#007847",
-          borderBottom: "1px solid rgba(255,255,255,0.1)",
+          padding: "28px 16px",
         }}
       >
-        <div className="container-fluid px-3 px-md-4">
-          <div
-            className="d-flex align-items-center justify-content-between"
-            style={{ minHeight: "68px" }}
-          >
-            <div
-              role="button"
-              onClick={() => go("/home")}
-              style={{
-                cursor: "pointer",
-                fontSize: "1.8rem",
-                fontWeight: "700",
-                letterSpacing: "-0.3px",
-              }}
-            >
-              ToolShare
-            </div>
-
-            {user && (
-              <span
-                className="badge rounded-pill"
-                style={{
-                  backgroundColor: "#ffffff",
-                  color: "#1f2937",
-                  padding: "8px 14px",
-                  fontSize: "0.8rem",
-                  fontWeight: "600",
-                }}
-              >
-                {roleLabel}
-              </span>
-            )}
-          </div>
+        <div
+          role="button"
+          onClick={() => go("/home")}
+          style={{
+            cursor: "pointer",
+            fontSize: "2.25rem",
+            fontWeight: "700",
+            letterSpacing: "-0.5px",
+            lineHeight: 1.1,
+          }}
+        >
+          ToolShare
         </div>
       </div>
 
