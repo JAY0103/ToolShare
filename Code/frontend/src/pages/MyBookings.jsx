@@ -1,4 +1,3 @@
-// src/pages/MyBookings.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { bookingsService, API_BASE } from "../services/api";
 
@@ -108,117 +107,168 @@ const MyBookings = () => {
   }, [requests]);
 
   if (loading) {
-    return <div className="container-fluid px-4 py-4">Loading requests...</div>;
+    return (
+      <div className="container-fluid px-3 px-md-4 py-4">
+        <div className="card border-0 shadow-sm rounded-4">
+          <div className="card-body py-5 text-center">
+            <div className="spinner-border text-success mb-3" role="status" aria-hidden="true"></div>
+            <div className="fw-semibold text-muted">Loading requests...</div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="container-fluid px-4 py-4">
-      <h2 className="fw-bold mb-4">My Requests</h2>
+    <div className="container-fluid px-3 px-md-4 py-4">
+      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+          <h2 className="fw-bold mb-1">My Requests</h2>
+          <p className="text-muted mb-0">View your submitted bookings and track their status.</p>
+        </div>
+
+        {requests.length > 0 && (
+          <div className="badge text-bg-light border rounded-pill px-3 py-2 fw-medium">
+            {requests.length} total item(s)
+          </div>
+        )}
+      </div>
 
       {requests.length === 0 ? (
-        <div className="alert alert-info text-center">You have not submitted any requests yet.</div>
+        <div className="card border-0 shadow-sm rounded-4">
+          <div className="card-body text-center py-5">
+            <h5 className="fw-bold mb-2">No requests yet</h5>
+            <p className="text-muted mb-0">You have not submitted any requests yet.</p>
+          </div>
+        </div>
       ) : (
         <div className="row g-4">
           {grouped.map((group) => (
             <div key={group.key} className="col-12">
-              <div className="card shadow-sm p-3">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <div>
-                    <h5 className="fw-bold mb-1">
-                      {group.request_group_id ? `Basket Request #${group.request_group_id}` : "Single Request"}
-                    </h5>
-                    <div className="text-muted small">
-                      <strong>Reason:</strong> {group.reason || "—"}
+              <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div className="card-body p-3 p-md-4">
+                  <div className="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                      <h5 className="fw-bold mb-1">
+                        {group.request_group_id
+                          ? `Basket Request #${group.request_group_id}`
+                          : "Single Request"}
+                      </h5>
+                      <div className="text-muted small">
+                        <strong>Reason:</strong> {group.reason || "—"}
+                      </div>
                     </div>
+
+                    <span className="badge bg-dark rounded-pill px-3 py-2">
+                      {group.items.length} item(s)
+                    </span>
                   </div>
 
-                  <span className="badge bg-dark">{group.items.length} item(s)</span>
-                </div>
+                  <div className="row g-3">
+                    {group.items.map((req) => {
+                      const status = req.status || "Pending";
+                      const rejectionNote = req.rejectionReason || req.decision_note || "";
+                      const v = normStatus(status);
 
-                <div className="row g-3">
-                  {group.items.map((req) => {
-                    const status = req.status || "Pending";
-                    const rejectionNote = req.rejectionReason || req.decision_note || "";
-                    const v = normStatus(status);
+                      const busy = !!actionBusy[req.request_id];
 
-                    const busy = !!actionBusy[req.request_id];
+                      const canCancel = v === "pending" || v === "approved";
+                      const isCancelled = v === "cancelled" || v === "canceled";
 
-                    const canCancel = v === "pending" || v === "approved";
-                    const isCancelled = v === "cancelled" || v === "canceled";
-
-                    return (
-                      <div key={req.request_id} className="col-md-6 col-lg-4">
-                        <div className="item-card shadow-sm">
-                          <div className="img-frame">
-                            <img
-                              src={getImageUrl(req.image_url)}
-                              alt={req.item_name || "Tool image"}
-                              onError={(e) => {
-                                e.currentTarget.src = "https://via.placeholder.com/400x250?text=Image+Not+Found";
+                      return (
+                        <div key={req.request_id} className="col-12 col-md-6 col-xl-4">
+                          <div className="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                            <div
+                              className="position-relative"
+                              style={{
+                                height: "220px",
+                                backgroundColor: "#f8f9fa",
                               }}
-                            />
-                          </div>
+                            >
+                              <img
+                                src={getImageUrl(req.image_url)}
+                                alt={req.item_name || "Tool image"}
+                                className="w-100 h-100"
+                                style={{ objectFit: "cover" }}
+                                onError={(e) => {
+                                  e.currentTarget.src =
+                                    "https://via.placeholder.com/400x250?text=Image+Not+Found";
+                                }}
+                              />
 
-                          <div className="card-body d-flex flex-column">
-                            <h5 className="card-title">{req.item_name}</h5>
-
-                            <p>
-                              <strong>From:</strong>{" "}
-                              {req.requested_start ? new Date(req.requested_start).toLocaleString() : "—"}
-                            </p>
-                            <p>
-                              <strong>To:</strong>{" "}
-                              {req.requested_end ? new Date(req.requested_end).toLocaleString() : "—"}
-                            </p>
-
-                            {req.checked_out_at && (
-                              <p className="mb-1">
-                                <strong>Checked out:</strong> {new Date(req.checked_out_at).toLocaleString()}
-                              </p>
-                            )}
-
-                            {req.returned_at && (
-                              <p className="mb-1">
-                                <strong>Returned:</strong> {new Date(req.returned_at).toLocaleString()}
-                              </p>
-                            )}
-
-                            {v === "rejected" && rejectionNote && (
-                              <div className="alert alert-info py-2 mt-2 mb-2">
-                                <strong>Owner message:</strong> {rejectionNote}
+                              <div className="position-absolute top-0 end-0 m-2">
+                                <span className={`badge rounded-pill px-3 py-2 ${badgeClassForStatus(status)}`}>
+                                  {displayStatus(status)}
+                                </span>
                               </div>
-                            )}
-
-                            {/* Cancel button */}
-                            <div className="d-flex gap-2 mt-2">
-                              {canCancel ? (
-                                <button
-                                  className="btn btn-outline-danger btn-sm fw-bold flex-fill"
-                                  disabled={busy}
-                                  onClick={() => handleCancelRequest(req.request_id)}
-                                >
-                                  {busy ? "Cancelling..." : "Cancel Request"}
-                                </button>
-                              ) : (
-                                <button className="btn btn-outline-secondary btn-sm fw-bold flex-fill" disabled>
-                                  {isCancelled ? "Cancelled" : "No Action"}
-                                </button>
-                              )}
                             </div>
 
-                            {/* Status badge */}
-                            <div className="mt-3">
-                              <span className={`badge w-100 py-2 fs-6 ${badgeClassForStatus(status)}`}>
-                                {displayStatus(status)}
-                              </span>
+                            <div className="card-body d-flex flex-column p-3">
+                              <h5 className="card-title fw-bold mb-3">
+                                {req.item_name || "Unnamed Tool"}
+                              </h5>
+
+                              <div className="small text-muted mb-3">
+                                <div className="mb-2">
+                                  <strong className="text-dark">From:</strong>{" "}
+                                  {req.requested_start
+                                    ? new Date(req.requested_start).toLocaleString()
+                                    : "—"}
+                                </div>
+
+                                <div className="mb-2">
+                                  <strong className="text-dark">To:</strong>{" "}
+                                  {req.requested_end
+                                    ? new Date(req.requested_end).toLocaleString()
+                                    : "—"}
+                                </div>
+
+                                {req.checked_out_at && (
+                                  <div className="mb-2">
+                                    <strong className="text-dark">Checked out:</strong>{" "}
+                                    {new Date(req.checked_out_at).toLocaleString()}
+                                  </div>
+                                )}
+
+                                {req.returned_at && (
+                                  <div className="mb-2">
+                                    <strong className="text-dark">Returned:</strong>{" "}
+                                    {new Date(req.returned_at).toLocaleString()}
+                                  </div>
+                                )}
+                              </div>
+
+                              {v === "rejected" && rejectionNote && (
+                                <div className="alert alert-info border-0 py-2 px-3 rounded-3 mb-3">
+                                  <strong>Owner message:</strong> {rejectionNote}
+                                </div>
+                              )}
+
+                              <div className="mt-auto">
+                                {canCancel ? (
+                                  <button
+                                    className="btn btn-outline-danger w-100 fw-semibold rounded-3"
+                                    disabled={busy}
+                                    onClick={() => handleCancelRequest(req.request_id)}
+                                  >
+                                    {busy ? "Cancelling..." : "Cancel Request"}
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="btn btn-outline-secondary w-100 fw-semibold rounded-3"
+                                    disabled
+                                  >
+                                    {isCancelled ? "Cancelled" : "No Action"}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-
               </div>
             </div>
           ))}

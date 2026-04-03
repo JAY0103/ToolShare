@@ -194,7 +194,6 @@ const Cart = () => {
       {basketCount === 0 ? (
         <div className="card border-0 shadow-sm rounded-4">
           <div className="card-body p-5 text-center">
-            <div className="mb-3 fs-4">🧺</div>
             <h5 className="fw-bold mb-2">Your basket is empty</h5>
             <p className="text-muted mb-0">
               Go to <strong>Browse Tools</strong> and add items to your basket.
