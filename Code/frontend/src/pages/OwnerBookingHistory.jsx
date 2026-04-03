@@ -537,6 +537,23 @@ const OwnerBookingHistory = () => {
                                 "-"
                               )}
                             </div>
+
+                            {(r.status === "Returned" || r.status === "CheckedOut" || r.status === "Overdue") && (
+                              <button
+                                className="btn btn-outline-secondary btn-sm"
+                                style={{ borderRadius: "10px", fontWeight: 500 }}
+                                onClick={() =>
+                                  navigate("/edit-condition-images", {
+                                    state: {
+                                      requestId: r.request_id,
+                                      mode: "view",
+                                    },
+                                  })
+                                }
+                              >
+                                View Images
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );

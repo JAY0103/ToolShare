@@ -8,7 +8,10 @@ const EditConditionImages = () => {
   const navigate = useNavigate();
 
   const requestId = location.state?.requestId;
-  const type = location.state?.mode; // "checkout" or "return"
+  const type = location.state?.mode; // "checkout" | "return" | "view"
+  const isCheckout = type === "checkout";
+  const isReturn = type === "return";
+  const isViewOnly = type === "view";
 
   const [loading, setLoading] = useState(true);
   const [images, setImages] = useState([]);
@@ -82,6 +85,8 @@ const EditConditionImages = () => {
   );
 
   const handleUploadAndContinue = async () => {
+    if (isViewOnly) return;
+
     if (!formData.image) {
       setError("Please select an image first.");
       return;
@@ -93,9 +98,9 @@ const EditConditionImages = () => {
     try {
       const data = new FormData();
       data.append("image", formData.image);
-      data.append("image_type", type === "checkout" ? "Before" : "After");
+      data.append("image_type", isCheckout ? "Before" : "After");
 
-      if (type === "return" && formData.note.trim()) {
+      if (isReturn && formData.note.trim()) {
         data.append("note", formData.note.trim());
       }
 
@@ -107,8 +112,8 @@ const EditConditionImages = () => {
           ? {
               image_url: uploadRes.image_url,
               filename: uploadRes.filename,
-              image_type: type === "checkout" ? "Before" : "After",
-              note: type === "return" ? formData.note.trim() : "",
+              image_type: isCheckout ? "Before" : "After",
+              note: isReturn ? formData.note.trim() : "",
             }
           : null);
 
@@ -116,10 +121,10 @@ const EditConditionImages = () => {
         setImages((prev) => [...prev, newImage]);
       }
 
-      if (type === "checkout") {
+      if (isCheckout) {
         await bookingsService.checkoutRequest(requestId);
         alert("Checked out successfully!");
-      } else if (type === "return") {
+      } else if (isReturn) {
         await bookingsService.returnRequest(requestId, formData.note.trim());
         alert("Returned successfully!");
       } else {
@@ -142,7 +147,6 @@ const EditConditionImages = () => {
 
     if (typeof path === "string" && path.startsWith("http")) return path;
 
-    // avoid double path issue
     if (typeof path === "string" && path.startsWith("/uploads/condition-images/")) {
       return `${API_BASE}${path}`;
     }
@@ -206,12 +210,27 @@ const EditConditionImages = () => {
     );
   }
 
-  const isCheckout = type === "checkout";
+  const badgeText = isCheckout
+    ? "Checkout Flow"
+    : isReturn
+    ? "Return Flow"
+    : "View Only";
+
+  const titleText = isCheckout
+    ? "Checkout Condition Images"
+    : isReturn
+    ? "Return Condition Images"
+    : "Condition Images";
+
+  const subtitleText = isCheckout
+    ? "Upload an image before giving the item to the user so the condition is recorded clearly."
+    : isReturn
+    ? "Upload an image after receiving the item back. You can also add a note for damage, missing parts, or anything important."
+    : "View the item condition images recorded during checkout and return.";
 
   return (
     <div className="container-fluid px-3 px-md-4 py-4 py-md-5">
       <div className="mx-auto" style={{ maxWidth: "1280px" }}>
-        {/* Header */}
         <div
           className="card border-0 shadow-sm mb-4"
           style={{ borderRadius: "22px", overflow: "hidden" }}
@@ -220,17 +239,13 @@ const EditConditionImages = () => {
             <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
               <div>
                 <div className="d-inline-flex align-items-center px-3 py-2 rounded-pill bg-light text-success fw-semibold small mb-3">
-                  {isCheckout ? "Checkout Flow" : "Return Flow"}
+                  {badgeText}
                 </div>
 
-                <h2 className="fw-bold mb-2">
-                  {isCheckout ? "Checkout Condition Images" : "Return Condition Images"}
-                </h2>
+                <h2 className="fw-bold mb-2">{titleText}</h2>
 
                 <p className="text-muted mb-0" style={{ maxWidth: "760px" }}>
-                  {isCheckout
-                    ? "Upload an image before giving the item to the user so the condition is recorded clearly."
-                    : "Upload an image after receiving the item back. You can also add a note for damage, missing parts, or anything important."}
+                  {subtitleText}
                 </p>
               </div>
 
@@ -246,8 +261,7 @@ const EditConditionImages = () => {
         </div>
 
         <div className="row g-4 align-items-start">
-          {/* Left: Comparison */}
-          <div className="col-xl-8">
+          <div className={isViewOnly ? "col-12" : "col-xl-8"}>
             <div
               className="card border-0 shadow-sm h-100"
               style={{ borderRadius: "22px", overflow: "hidden" }}
@@ -321,98 +335,98 @@ const EditConditionImages = () => {
             </div>
           </div>
 
-          {/* Right: Upload */}
-          <div className="col-xl-4">
-            <div
-              className="card border-0 shadow-sm"
-              style={{ borderRadius: "22px", overflow: "hidden" }}
-            >
-              <div className="card-body p-4 p-md-4">
-                <h5 className="fw-bold mb-1">
-                  {isCheckout ? "Upload Checkout Image" : "Upload Return Image"}
-                </h5>
-                <p className="text-muted small mb-4">
-                  Allowed formats: JPEG, PNG, WebP. Maximum size: 5MB.
-                </p>
+          {!isViewOnly && (
+            <div className="col-xl-4">
+              <div
+                className="card border-0 shadow-sm"
+                style={{ borderRadius: "22px", overflow: "hidden" }}
+              >
+                <div className="card-body p-4 p-md-4">
+                  <h5 className="fw-bold mb-1">
+                    {isCheckout ? "Upload Checkout Image" : "Upload Return Image"}
+                  </h5>
+                  <p className="text-muted small mb-4">
+                    Allowed formats: JPEG, PNG, WebP. Maximum size: 5MB.
+                  </p>
 
-                {error && (
-                  <div className="alert alert-danger rounded-4 border-0">{error}</div>
-                )}
+                  {error && (
+                    <div className="alert alert-danger rounded-4 border-0">{error}</div>
+                  )}
 
-                <div className="mb-4">
-                  <label className="form-label fw-semibold">Select Image</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="form-control"
-                    style={{ borderRadius: "14px", padding: "12px" }}
-                  />
-                  {formData.image && (
-                    <div className="small text-muted mt-2">
-                      Selected: <span className="fw-semibold">{formData.image.name}</span>
+                  <div className="mb-4">
+                    <label className="form-label fw-semibold">Select Image</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="form-control"
+                      style={{ borderRadius: "14px", padding: "12px" }}
+                    />
+                    {formData.image && (
+                      <div className="small text-muted mt-2">
+                        Selected: <span className="fw-semibold">{formData.image.name}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {isReturn && (
+                    <div className="mb-4">
+                      <label className="form-label fw-semibold">
+                        Return Note / Damage Note
+                      </label>
+                      <textarea
+                        className="form-control"
+                        rows={5}
+                        placeholder="Example: Small scratch on the side, charger missing, item returned in good condition, etc."
+                        value={formData.note}
+                        onChange={handleNoteChange}
+                        style={{ borderRadius: "14px", resize: "none" }}
+                      />
+                      <div className="form-text">
+                        Add any note about damage, missing parts, or item condition.
+                      </div>
                     </div>
                   )}
-                </div>
 
-                {type === "return" && (
-                  <div className="mb-4">
-                    <label className="form-label fw-semibold">
-                      Return Note / Damage Note
-                    </label>
-                    <textarea
-                      className="form-control"
-                      rows={5}
-                      placeholder="Example: Small scratch on the side, charger missing, item returned in good condition, etc."
-                      value={formData.note}
-                      onChange={handleNoteChange}
-                      style={{ borderRadius: "14px", resize: "none" }}
-                    />
-                    <div className="form-text">
-                      Add any note about damage, missing parts, or item condition.
-                    </div>
+                  <div className="d-grid gap-2">
+                    <button
+                      className="btn btn-success fw-bold py-2"
+                      onClick={handleUploadAndContinue}
+                      disabled={uploading}
+                      style={{ borderRadius: "14px" }}
+                    >
+                      {uploading
+                        ? "Processing..."
+                        : isCheckout
+                        ? "Upload & Check Out"
+                        : "Upload & Return"}
+                    </button>
+
+                    <button
+                      className="btn btn-light fw-semibold py-2"
+                      onClick={() => navigate("/requested-bookings")}
+                      disabled={uploading}
+                      style={{ borderRadius: "14px", border: "1px solid #dee2e6" }}
+                    >
+                      Cancel
+                    </button>
                   </div>
-                )}
+                </div>
+              </div>
 
-                <div className="d-grid gap-2">
-                  <button
-                    className="btn btn-success fw-bold py-2"
-                    onClick={handleUploadAndContinue}
-                    disabled={uploading}
-                    style={{ borderRadius: "14px" }}
-                  >
-                    {uploading
-                      ? "Processing..."
-                      : isCheckout
-                      ? "Upload & Check Out"
-                      : "Upload & Return"}
-                  </button>
-
-                  <button
-                    className="btn btn-light fw-semibold py-2"
-                    onClick={() => navigate("/requested-bookings")}
-                    disabled={uploading}
-                    style={{ borderRadius: "14px", border: "1px solid #dee2e6" }}
-                  >
-                    Cancel
-                  </button>
+              <div
+                className="card border-0 shadow-sm mt-4"
+                style={{ borderRadius: "22px" }}
+              >
+                <div className="card-body p-4">
+                  <h6 className="fw-bold mb-2">Tip</h6>
+                  <p className="text-muted small mb-0">
+                    Try to capture the full item clearly so comparison is easier later.
+                  </p>
                 </div>
               </div>
             </div>
-
-            {/* Optional helper card */}
-            <div
-              className="card border-0 shadow-sm mt-4"
-              style={{ borderRadius: "22px" }}
-            >
-              <div className="card-body p-4">
-                <h6 className="fw-bold mb-2">Tip</h6>
-                <p className="text-muted small mb-0">
-                  Try to capture the full item clearly so comparison is easier later.
-                </p>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
