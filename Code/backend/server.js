@@ -1011,11 +1011,11 @@ app.get("/api/borrowrequest/:id/condition-images", authenticateToken, async (req
         image_type,
         created_at
       FROM conditionimages
-      WHERE borrow_request_id = ${borrow_request_id}
+      WHERE borrow_request_id = ?
       ORDER BY created_at ASC
     `;
 
-    const [images] = await query(sql);
+    const images = await query(sql, [borrow_request_id]);
 
     res.json({ images });
   } catch (err) {
