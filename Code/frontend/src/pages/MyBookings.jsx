@@ -149,14 +149,11 @@ const MyBookings = () => {
                 <div className="card-body p-3 p-md-4">
                   <div className="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-3">
                     <div>
-                      <h5 className="fw-bold mb-1">
+                      <h5 className="fw-bold mb-0">
                         {group.request_group_id
                           ? `Basket Request #${group.request_group_id}`
                           : "Single Request"}
                       </h5>
-                      <div className="text-muted small">
-                        <strong>Reason:</strong> {group.reason || "—"}
-                      </div>
                     </div>
 
                     <span className="badge bg-dark rounded-pill px-3 py-2">
@@ -179,7 +176,7 @@ const MyBookings = () => {
                         <div key={req.request_id} className="col-12 col-md-6 col-xl-4">
                           <div className="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
                             <div
-                              className="position-relative"
+                              className="position-relative d-flex align-items-center justify-content-center"
                               style={{
                                 height: "220px",
                                 backgroundColor: "#f8f9fa",
@@ -189,7 +186,7 @@ const MyBookings = () => {
                                 src={getImageUrl(req.image_url)}
                                 alt={req.item_name || "Tool image"}
                                 className="w-100 h-100"
-                                style={{ objectFit: "cover" }}
+                                style={{ objectFit: "contain" }}
                                 onError={(e) => {
                                   e.currentTarget.src =
                                     "https://via.placeholder.com/400x250?text=Image+Not+Found";
@@ -209,6 +206,11 @@ const MyBookings = () => {
                               </h5>
 
                               <div className="small text-muted mb-3">
+                                <div className="mb-2">
+                                  <strong className="text-dark">Reason:</strong>{" "}
+                                  {req.reason || group.reason || "—"}
+                                </div>
+
                                 <div className="mb-2">
                                   <strong className="text-dark">From:</strong>{" "}
                                   {req.requested_start
