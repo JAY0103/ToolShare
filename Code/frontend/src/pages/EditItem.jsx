@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { itemsService, API_BASE } from "../services/api";
 
+const MAX_SERIAL_LENGTH = 15;
+
 const EditItem = () => {
   const [searchParams] = useSearchParams();
   const itemId = searchParams.get("item_id");
@@ -19,10 +21,9 @@ const EditItem = () => {
     category_id: "",
     image_url: "",
     serial_number: "",
-    quantity: 0,
+    quantity: "0", // keep as string for smoother editing
   });
 
-  // ---------------- INIT ----------------
   useEffect(() => {
     if (!itemId) {
       alert("Invalid item");
@@ -44,12 +45,10 @@ const EditItem = () => {
         setFormData({
           name: found.name || "",
           description: found.description || "",
-          category_id: found.category_id
-            ? String(found.category_id)
-            : "",
+          category_id: found.category_id ? String(found.category_id) : "",
           image_url: found.image_url || "",
           serial_number: found.serial_number || "",
-          quantity: found.quantity ?? 0,
+          quantity: String(found.quantity ?? 0),
         });
 
         const cats = await itemsService.getCategories();
@@ -66,10 +65,10 @@ const EditItem = () => {
     init();
   }, [itemId, navigate]);
 
-  // ---------------- HELPERS ----------------
   const getImageSrc = (image_url) => {
-    if (!image_url)
+    if (!image_url) {
       return "https://via.placeholder.com/400x250?text=No+Image";
+    }
     if (image_url.startsWith("http")) return image_url;
     return `${API_BASE}${image_url}`;
   };
@@ -77,13 +76,42 @@ const EditItem = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    if (name === "quantity") {
+      // allow empty value while typing, digits only
+      if (value === "" || /^[0-9]+$/.test(value)) {
+        setFormData((prev) => ({
+          ...prev,
+          quantity: value,
+        }));
+      }
+      return;
+    }
+
+    if (name === "serial_number") {
+      setFormData((prev) => ({
+        ...prev,
+        serial_number: value.slice(0, MAX_SERIAL_LENGTH),
+      }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "quantity" ? Number(value) : value,
+      [name]: value,
     }));
   };
 
-  // ---------------- SUBMIT ----------------
+  const handleQuantityBlur = () => {
+    const qty = parseInt(formData.quantity, 10);
+
+    if (Number.isNaN(qty) || qty < 0) {
+      setFormData((prev) => ({
+        ...prev,
+        quantity: "0",
+      }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -92,8 +120,17 @@ const EditItem = () => {
       return;
     }
 
-    if (formData.quantity < 0) {
+    const parsedQty = parseInt(formData.quantity, 10);
+
+    if (Number.isNaN(parsedQty) || parsedQty < 0) {
       alert("Quantity cannot be negative");
+      return;
+    }
+
+    const cleanedSerial = formData.serial_number.trim();
+
+    if (cleanedSerial.length > MAX_SERIAL_LENGTH) {
+      alert(`Serial number cannot be more than ${MAX_SERIAL_LENGTH} characters`);
       return;
     }
 
@@ -104,8 +141,8 @@ const EditItem = () => {
         name: formData.name.trim(),
         description: formData.description.trim(),
         category_id: formData.category_id || null,
-        serial_number: formData.serial_number.trim(),
-        quantity: formData.quantity,
+        serial_number: cleanedSerial || null,
+        quantity: parsedQty,
       });
 
       alert("Item updated successfully!");
@@ -117,7 +154,6 @@ const EditItem = () => {
     }
   };
 
-  // ---------------- LOADING ----------------
   if (loading) {
     return (
       <div className="container p-4 text-center">
@@ -126,13 +162,11 @@ const EditItem = () => {
     );
   }
 
-  // ---------------- UI ----------------
   return (
     <div className="container-fluid px-4 py-4">
       <h2 className="fw-bold mb-4">Edit Item</h2>
 
       <div className="row g-4">
-        {/* IMAGE */}
         <div className="col-md-6">
           <div className="card shadow">
             <div
@@ -157,15 +191,11 @@ const EditItem = () => {
           </div>
         </div>
 
-        {/* FORM */}
         <div className="col-md-6">
           <div className="card shadow p-4">
             <form onSubmit={handleSubmit}>
-              {/* NAME */}
               <div className="mb-3">
-                <label className="form-label fw-bold">
-                  Item Name *
-                </label>
+                <label className="form-label fw-bold">Item Name *</label>
                 <input
                   type="text"
                   name="name"
@@ -176,11 +206,8 @@ const EditItem = () => {
                 />
               </div>
 
-              {/* DESCRIPTION */}
               <div className="mb-3">
-                <label className="form-label fw-bold">
-                  Description *
-                </label>
+                <label className="form-label fw-bold">Description *</label>
                 <textarea
                   name="description"
                   className="form-control"
@@ -191,10 +218,9 @@ const EditItem = () => {
                 />
               </div>
 
-              {/* SERIAL NUMBER */}
               <div className="mb-3">
                 <label className="form-label fw-bold">
-                  Serial Number *
+                  Serial Number
                 </label>
                 <input
                   type="text"
@@ -202,31 +228,30 @@ const EditItem = () => {
                   className="form-control"
                   value={formData.serial_number}
                   onChange={handleChange}
-                  placeholder="Enter serial number"
+                  placeholder="Enter serial number if available"
+                  maxLength={MAX_SERIAL_LENGTH}
                 />
+                <small className="text-muted">
+                  Optional. Max {MAX_SERIAL_LENGTH} characters.
+                </small>
               </div>
 
-              {/* QUANTITY */}
               <div className="mb-3">
-                <label className="form-label fw-bold">
-                  Quantity *
-                </label>
+                <label className="form-label fw-bold">Quantity *</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   name="quantity"
                   className="form-control"
                   value={formData.quantity}
                   onChange={handleChange}
-                  min="0"
+                  onBlur={handleQuantityBlur}
                   required
                 />
               </div>
 
-              {/* CATEGORY */}
               <div className="mb-3">
-                <label className="form-label fw-bold">
-                  Category *
-                </label>
+                <label className="form-label fw-bold">Category *</label>
                 <select
                   className="form-select"
                   name="category_id"
@@ -235,9 +260,7 @@ const EditItem = () => {
                   disabled={categoriesLoading}
                 >
                   <option value="">
-                    {categoriesLoading
-                      ? "Loading categories..."
-                      : "Uncategorized"}
+                    {categoriesLoading ? "Loading categories..." : "Uncategorized"}
                   </option>
 
                   {categories.map((c) => (
@@ -251,7 +274,6 @@ const EditItem = () => {
                 </select>
               </div>
 
-              {/* BUTTONS */}
               <button
                 type="submit"
                 className="btn btn-success me-2"

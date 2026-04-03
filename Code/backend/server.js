@@ -557,20 +557,35 @@ app.post("/api/items", authenticateToken, upload.single("image"), async (req, re
   const { name, description, serial_number, category_id } = req.body;
   const owner_id = req.user.userId;
 
-  if (!name || !description) {
+  if (!name || !String(name).trim() || !description || !String(description).trim()) {
     return res.status(400).json({ error: "Name and description are required." });
   }
 
   try {
-    if (!isStaff(req)) return res.status(403).json({ error: "Only faculty/admin can add items." });
+    if (!isStaff(req)) {
+      return res.status(403).json({ error: "Only faculty/admin can add items." });
+    }
 
     const image_url = req.file ? `/uploads/${req.file.filename}` : null;
     const catId = category_id ? Number(category_id) : null;
 
+    // Clean serial number
+    let cleanedSerial = typeof serial_number === "string" ? serial_number.trim() : "";
+
+    // Save as NULL if blank
+    if (!cleanedSerial) {
+      cleanedSerial = null;
+    }
+
+    // Max 15 chars if provided
+    if (cleanedSerial && cleanedSerial.length > 15) {
+      return res.status(400).json({ error: "Serial number cannot be more than 15 characters." });
+    }
+
     await query(
       `INSERT INTO items (name, description, image_url, faculty_id, owner_id, serial_number, category_id)
        VALUES (?, ?, ?, 1, ?, ?, ?)`,
-      [name, description, image_url, owner_id, serial_number || null, catId || null]
+      [String(name).trim(), String(description).trim(), image_url, owner_id, cleanedSerial, catId || null]
     );
 
     res.json({ message: "Item added successfully" });
@@ -643,7 +658,10 @@ app.get("/api/items/availability", authenticateToken, async (req, res) => {
 
 app.put("/api/edit-item", authenticateToken, async (req, res) => {
   const { item_id, name, description, category_id, serial_number, quantity } = req.body;
-  if (!item_id || !name) return res.status(400).json({ error: "Item ID and name are required." });
+
+  if (!item_id || !name || !String(name).trim()) {
+    return res.status(400).json({ error: "Item ID and name are required." });
+  }
 
   if (quantity !== undefined && (isNaN(Number(quantity)) || Number(quantity) < 0)) {
     return res.status(400).json({ error: "Quantity must be a non-negative number." });
@@ -662,12 +680,28 @@ app.put("/api/edit-item", authenticateToken, async (req, res) => {
     const catId = category_id ? Number(category_id) : null;
     const qty = quantity !== undefined ? Number(quantity) : null;
 
-    // Update item details
+    let cleanedSerial = typeof serial_number === "string" ? serial_number.trim() : "";
+
+    if (!cleanedSerial) {
+      cleanedSerial = null;
+    }
+
+    if (cleanedSerial && cleanedSerial.length > 15) {
+      return res.status(400).json({ error: "Serial number cannot be more than 15 characters." });
+    }
+
     await query(
       `UPDATE items
        SET name = ?, description = ?, category_id = ?, serial_number = ?, quantity = ?
        WHERE item_id = ?`,
-      [name, description || null, catId || null, serial_number || null, qty, item_id]
+      [
+        String(name).trim(),
+        description ? String(description).trim() : null,
+        catId || null,
+        cleanedSerial,
+        qty,
+        item_id,
+      ]
     );
 
     res.json({ message: "Item updated successfully" });
