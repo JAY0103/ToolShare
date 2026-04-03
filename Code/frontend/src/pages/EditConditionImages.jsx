@@ -42,7 +42,6 @@ const EditConditionImages = () => {
         setImages(normalizedImages);
       } catch (err) {
         console.error("Condition image load failed:", err);
-        // Keep the page open even if fetch fails or there are no old images yet
         setImages([]);
       } finally {
         setLoading(false);
@@ -96,16 +95,12 @@ const EditConditionImages = () => {
       data.append("image", formData.image);
       data.append("image_type", type === "checkout" ? "Before" : "After");
 
-      // For return, optionally send a note with the upload too
       if (type === "return" && formData.note.trim()) {
         data.append("note", formData.note.trim());
       }
 
-      // Upload image first
       const uploadRes = await itemsService.uploadConditionImage(requestId, data);
 
-      // If backend returns full image object, use it.
-      // Otherwise create a fallback object so UI updates immediately.
       const newImage =
         uploadRes?.image ||
         (uploadRes?.image_url || uploadRes?.filename
@@ -121,7 +116,6 @@ const EditConditionImages = () => {
         setImages((prev) => [...prev, newImage]);
       }
 
-      // 2. Then perform booking action
       if (type === "checkout") {
         await bookingsService.checkoutRequest(requestId);
         alert("Checked out successfully!");
@@ -142,33 +136,54 @@ const EditConditionImages = () => {
   };
 
   const getImageSrc = (image) => {
-    if (!image) return "https://via.placeholder.com/150?text=No+Image";
+    if (!image) return "https://via.placeholder.com/600x400?text=No+Image";
 
     const path = image?.image_url || image?.filename || image;
 
     if (typeof path === "string" && path.startsWith("http")) return path;
-	  return `${API_BASE}/uploads/condition-images/${path}`;
+
+    // avoid double path issue
+    if (typeof path === "string" && path.startsWith("/uploads/condition-images/")) {
+      return `${API_BASE}${path}`;
+    }
+
+    return `${API_BASE}/uploads/condition-images/${path}`;
   };
 
   const renderImageGrid = (list, emptyText, keyPrefix) => {
     if (list.length === 0) {
-      return <div className="alert alert-light mb-0">{emptyText}</div>;
+      return (
+        <div className="border rounded-4 p-4 text-center bg-light-subtle text-muted">
+          {emptyText}
+        </div>
+      );
     }
 
     return (
       <div className="row g-3">
         {list.map((img, idx) => (
-          <div className="col-6" key={`${keyPrefix}-${idx}`}>
-            <div className="border rounded p-2 bg-light">
-              <img
-                src={getImageSrc(img)}
-                alt={`${keyPrefix} ${idx + 1}`}
-                className="img-fluid rounded"
-                style={{ height: "180px", width: "100%", objectFit: "cover" }}
-              />
+          <div className="col-sm-6" key={`${keyPrefix}-${idx}`}>
+            <div
+              className="card border-0 shadow-sm h-100"
+              style={{ borderRadius: "18px", overflow: "hidden" }}
+            >
+              <div
+                className="bg-light d-flex align-items-center justify-content-center"
+                style={{ height: "220px" }}
+              >
+                <img
+                  src={getImageSrc(img)}
+                  alt={`${keyPrefix} ${idx + 1}`}
+                  className="w-100 h-100"
+                  style={{ objectFit: "cover" }}
+                />
+              </div>
+
               {img?.note ? (
-                <div className="small text-muted mt-2">
-                  <strong>Note:</strong> {img.note}
+                <div className="card-body py-3">
+                  <div className="small text-muted">
+                    <span className="fw-semibold text-dark">Note:</span> {img.note}
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -179,120 +194,225 @@ const EditConditionImages = () => {
   };
 
   if (loading) {
-    return <div className="container p-4">Loading...</div>;
+    return (
+      <div className="container py-5">
+        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "40vh" }}>
+          <div className="text-center">
+            <div className="spinner-border text-success mb-3" role="status" />
+            <div className="fw-semibold text-muted">Loading condition images...</div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
+  const isCheckout = type === "checkout";
+
   return (
-    <div className="container-fluid px-4 py-4">
-      <h2 className="fw-bold mb-2">
-        {type === "checkout" ? "Checkout Condition Images" : "Return Condition Images"}
-      </h2>
-
-      <div className="text-muted mb-4">
-        {type === "checkout"
-          ? "Upload an image before giving the item to the user."
-          : "Upload an image after receiving the item back. Add a note if there is damage or anything important to mention."}
-      </div>
-
-      {/* Condition comparison section */}
-      <div className="mb-4">
-        <h4 className="fw-bold mb-3">Condition Comparison</h4>
-
-        {images.length === 0 ? (
-          <div className="alert alert-info">No condition images yet.</div>
-        ) : (
-          <div className="row g-4">
-            <div className="col-lg-6">
-              <div className="card shadow h-100">
-                <div className="card-header bg-primary text-white fw-bold">
-                  Before Checkout
+    <div className="container-fluid px-3 px-md-4 py-4 py-md-5">
+      <div className="mx-auto" style={{ maxWidth: "1280px" }}>
+        {/* Header */}
+        <div
+          className="card border-0 shadow-sm mb-4"
+          style={{ borderRadius: "22px", overflow: "hidden" }}
+        >
+          <div className="card-body p-4 p-md-5">
+            <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+              <div>
+                <div className="d-inline-flex align-items-center px-3 py-2 rounded-pill bg-light text-success fw-semibold small mb-3">
+                  {isCheckout ? "Checkout Flow" : "Return Flow"}
                 </div>
-                <div className="card-body">
-                  {renderImageGrid(
-                    beforeImages,
-                    "No checkout images uploaded yet.",
-                    "before"
+
+                <h2 className="fw-bold mb-2">
+                  {isCheckout ? "Checkout Condition Images" : "Return Condition Images"}
+                </h2>
+
+                <p className="text-muted mb-0" style={{ maxWidth: "760px" }}>
+                  {isCheckout
+                    ? "Upload an image before giving the item to the user so the condition is recorded clearly."
+                    : "Upload an image after receiving the item back. You can also add a note for damage, missing parts, or anything important."}
+                </p>
+              </div>
+
+              <button
+                className="btn btn-outline-secondary fw-semibold px-4"
+                onClick={() => navigate("/requested-bookings")}
+                disabled={uploading}
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="row g-4 align-items-start">
+          {/* Left: Comparison */}
+          <div className="col-xl-8">
+            <div
+              className="card border-0 shadow-sm h-100"
+              style={{ borderRadius: "22px", overflow: "hidden" }}
+            >
+              <div className="card-body p-4 p-md-4">
+                <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-2">
+                  <div>
+                    <h4 className="fw-bold mb-1">Condition Comparison</h4>
+                    <p className="text-muted mb-0">
+                      Compare item images from before checkout and after return.
+                    </p>
+                  </div>
+                </div>
+
+                {images.length === 0 ? (
+                  <div className="alert alert-info border-0 rounded-4 mb-0">
+                    No condition images available yet.
+                  </div>
+                ) : (
+                  <div className="row g-4">
+                    <div className="col-lg-6">
+                      <div
+                        className="h-100 p-3 p-md-4"
+                        style={{
+                          background: "#f8f9fa",
+                          borderRadius: "20px",
+                          border: "1px solid #e9ecef",
+                        }}
+                      >
+                        <div className="d-flex align-items-center justify-content-between mb-3">
+                          <h5 className="fw-bold mb-0">Before Checkout</h5>
+                          <span className="badge text-bg-primary rounded-pill px-3 py-2">
+                            {beforeImages.length}
+                          </span>
+                        </div>
+
+                        {renderImageGrid(
+                          beforeImages,
+                          "No checkout images uploaded yet.",
+                          "before"
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="col-lg-6">
+                      <div
+                        className="h-100 p-3 p-md-4"
+                        style={{
+                          background: "#f8f9fa",
+                          borderRadius: "20px",
+                          border: "1px solid #e9ecef",
+                        }}
+                      >
+                        <div className="d-flex align-items-center justify-content-between mb-3">
+                          <h5 className="fw-bold mb-0">After Return</h5>
+                          <span className="badge text-bg-success rounded-pill px-3 py-2">
+                            {afterImages.length}
+                          </span>
+                        </div>
+
+                        {renderImageGrid(
+                          afterImages,
+                          "No return images uploaded yet.",
+                          "after"
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Upload */}
+          <div className="col-xl-4">
+            <div
+              className="card border-0 shadow-sm"
+              style={{ borderRadius: "22px", overflow: "hidden" }}
+            >
+              <div className="card-body p-4 p-md-4">
+                <h5 className="fw-bold mb-1">
+                  {isCheckout ? "Upload Checkout Image" : "Upload Return Image"}
+                </h5>
+                <p className="text-muted small mb-4">
+                  Allowed formats: JPEG, PNG, WebP. Maximum size: 5MB.
+                </p>
+
+                {error && (
+                  <div className="alert alert-danger rounded-4 border-0">{error}</div>
+                )}
+
+                <div className="mb-4">
+                  <label className="form-label fw-semibold">Select Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="form-control"
+                    style={{ borderRadius: "14px", padding: "12px" }}
+                  />
+                  {formData.image && (
+                    <div className="small text-muted mt-2">
+                      Selected: <span className="fw-semibold">{formData.image.name}</span>
+                    </div>
                   )}
+                </div>
+
+                {type === "return" && (
+                  <div className="mb-4">
+                    <label className="form-label fw-semibold">
+                      Return Note / Damage Note
+                    </label>
+                    <textarea
+                      className="form-control"
+                      rows={5}
+                      placeholder="Example: Small scratch on the side, charger missing, item returned in good condition, etc."
+                      value={formData.note}
+                      onChange={handleNoteChange}
+                      style={{ borderRadius: "14px", resize: "none" }}
+                    />
+                    <div className="form-text">
+                      Add any note about damage, missing parts, or item condition.
+                    </div>
+                  </div>
+                )}
+
+                <div className="d-grid gap-2">
+                  <button
+                    className="btn btn-success fw-bold py-2"
+                    onClick={handleUploadAndContinue}
+                    disabled={uploading}
+                    style={{ borderRadius: "14px" }}
+                  >
+                    {uploading
+                      ? "Processing..."
+                      : isCheckout
+                      ? "Upload & Check Out"
+                      : "Upload & Return"}
+                  </button>
+
+                  <button
+                    className="btn btn-light fw-semibold py-2"
+                    onClick={() => navigate("/requested-bookings")}
+                    disabled={uploading}
+                    style={{ borderRadius: "14px", border: "1px solid #dee2e6" }}
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div className="col-lg-6">
-              <div className="card shadow h-100">
-                <div className="card-header bg-success text-white fw-bold">
-                  After Return
-                </div>
-                <div className="card-body">
-                  {renderImageGrid(
-                    afterImages,
-                    "No return images uploaded yet.",
-                    "after"
-                  )}
-                </div>
+            {/* Optional helper card */}
+            <div
+              className="card border-0 shadow-sm mt-4"
+              style={{ borderRadius: "22px" }}
+            >
+              <div className="card-body p-4">
+                <h6 className="fw-bold mb-2">Tip</h6>
+                <p className="text-muted small mb-0">
+                  Try to capture the full item clearly so comparison is easier later.
+                </p>
               </div>
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Upload card */}
-      <div className="card shadow p-4" style={{ maxWidth: "520px" }}>
-        <h5 className="fw-bold mb-3">
-          {type === "checkout" ? "Upload Checkout Image" : "Upload Return Image"}
-        </h5>
-
-        {error && <div className="alert alert-danger">{error}</div>}
-
-        <div className="mb-3">
-          <label className="form-label fw-semibold">Select Image</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="form-control"
-          />
-        </div>
-
-        {type === "return" && (
-          <div className="mb-3">
-            <label className="form-label fw-semibold">Return Note / Damage Note</label>
-            <textarea
-              className="form-control"
-              rows={4}
-              placeholder="Example: Small scratch on the side, charger missing, item returned in good condition, etc."
-              value={formData.note}
-              onChange={handleNoteChange}
-            />
-            <div className="form-text">
-              Add any note about damage, missing parts, or item condition.
-            </div>
-          </div>
-        )}
-
-        <div className="d-flex gap-2">
-          <button
-            className="btn btn-success fw-bold"
-            onClick={handleUploadAndContinue}
-            disabled={uploading}
-          >
-            {uploading
-              ? "Processing..."
-              : type === "checkout"
-              ? "Upload & Check Out"
-              : "Upload & Return"}
-          </button>
-
-          <button
-            className="btn btn-secondary fw-bold"
-            onClick={() => navigate("/requested-bookings")}
-            disabled={uploading}
-          >
-            Cancel
-          </button>
-        </div>
-
-        <div className="mt-2 text-muted small">
-          Allowed: JPEG, PNG, WebP (max 5MB)
         </div>
       </div>
     </div>
