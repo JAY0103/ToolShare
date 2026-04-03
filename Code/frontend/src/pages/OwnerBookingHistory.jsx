@@ -51,37 +51,30 @@ const statusMeta = {
   Pending: {
     cardClass: "border-warning-subtle bg-warning-subtle",
     badgeClass: "bg-warning-subtle text-warning-emphasis border border-warning-subtle",
-    dot: "#f59e0b",
   },
   Approved: {
     cardClass: "border-success-subtle bg-success-subtle",
     badgeClass: "bg-success-subtle text-success-emphasis border border-success-subtle",
-    dot: "#16a34a",
   },
   Rejected: {
     cardClass: "border-danger-subtle bg-danger-subtle",
     badgeClass: "bg-danger-subtle text-danger-emphasis border border-danger-subtle",
-    dot: "#dc2626",
   },
   CheckedOut: {
     cardClass: "border-info-subtle bg-info-subtle",
     badgeClass: "bg-info-subtle text-info-emphasis border border-info-subtle",
-    dot: "#0891b2",
   },
   Returned: {
     cardClass: "border-primary-subtle bg-primary-subtle",
     badgeClass: "bg-primary-subtle text-primary-emphasis border border-primary-subtle",
-    dot: "#2563eb",
   },
   Overdue: {
-    cardClass: "border-danger-subtle",
+    cardClass: "border-danger-subtle bg-danger-subtle",
     badgeClass: "bg-danger-subtle text-danger-emphasis border border-danger-subtle",
-    dot: "#ef4444",
   },
   Default: {
-    cardClass: "border-light bg-light",
+    cardClass: "border-light bg-white",
     badgeClass: "bg-light text-dark border",
-    dot: "#6b7280",
   },
 };
 
@@ -102,25 +95,11 @@ const StatCard = ({ title, value, subtitle, tone = "Default" }) => {
         style={{ borderRadius: "18px" }}
       >
         <div className="card-body p-3 p-md-4">
-          <div className="d-flex align-items-start justify-content-between">
-            <div>
-              <div className="text-muted small fw-semibold text-uppercase mb-2">{title}</div>
-              <div className="fw-bold" style={{ fontSize: "1.9rem", lineHeight: 1 }}>
-                {value}
-              </div>
-              <div className="small text-muted mt-2">{subtitle}</div>
-            </div>
-            <span
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: "999px",
-                backgroundColor: meta.dot,
-                flexShrink: 0,
-                marginTop: 4,
-              }}
-            />
+          <div className="text-muted small fw-semibold text-uppercase mb-2">{title}</div>
+          <div className="fw-bold" style={{ fontSize: "1.9rem", lineHeight: 1 }}>
+            {value}
           </div>
+          <div className="small text-muted mt-2">{subtitle}</div>
         </div>
       </div>
     </div>
@@ -288,52 +267,48 @@ const OwnerBookingHistory = () => {
 
   return (
     <div
-      className="container-fluid px-3 px-md-4 px-lg-4 py-4"
+      className="container-fluid px-3 px-md-4 py-4"
       style={{ background: "#f8fafc", minHeight: "100vh" }}
     >
       <div className="mx-auto" style={{ maxWidth: "1600px" }}>
         {/* Header */}
         <div
-          className="card border-0 shadow-sm mb-4"
+          className="card border shadow-sm mb-4"
           style={{
-            borderRadius: "24px",
-            background:
-              "linear-gradient(135deg, #0f172a 0%, #1e293b 45%, #2563eb 100%)",
-            color: "#fff",
-            overflow: "hidden",
+            borderRadius: "20px",
+            background: "#ffffff",
           }}
         >
           <div className="card-body p-4 p-lg-5">
             <div className="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-4">
               <div>
                 <div
-                  className="d-inline-flex align-items-center px-3 py-2 mb-3"
+                  className="d-inline-flex align-items-center px-3 py-1 mb-3"
                   style={{
                     borderRadius: "999px",
-                    background: "rgba(255,255,255,0.12)",
-                    border: "1px solid rgba(255,255,255,0.14)",
-                    fontSize: "0.85rem",
+                    background: "#f1f5f9",
+                    fontSize: "0.8rem",
                     fontWeight: 600,
-                    backdropFilter: "blur(4px)",
+                    color: "#475569",
                   }}
                 >
                   Booking Operations
                 </div>
 
-                <h1 className="fw-bold mb-2" style={{ letterSpacing: "-0.03em" }}>
-                  Booking History Dashboard
+                <h1 className="fw-bold mb-2" style={{ color: "#0f172a" }}>
+                  Booking History
                 </h1>
 
-                <p className="mb-0" style={{ color: "rgba(255,255,255,0.82)", maxWidth: 850 }}>
+                <p className="mb-0 text-muted" style={{ maxWidth: 700 }}>
                   {isAdmin
-                    ? "Production-style admin dashboard for reviewing all booking requests across the platform."
-                    : "Production-style dashboard for reviewing booking history across the tools you own, with fast filtering and export support."}
+                    ? "View and manage all booking requests across the platform."
+                    : "View booking history for tools you own and track their status."}
                 </p>
               </div>
 
-              <div className="d-flex flex-wrap gap-2">
+              <div className="d-flex gap-2">
                 <button
-                  className="btn btn-light fw-semibold px-4 dashboard-btn"
+                  className="btn btn-outline-primary dashboard-btn"
                   onClick={onExportCsv}
                   disabled={loading || requests.length === 0}
                 >
@@ -361,12 +336,10 @@ const OwnerBookingHistory = () => {
           style={{ borderRadius: "24px", overflow: "hidden" }}
         >
           <div className="card-header bg-white border-0 p-4 pb-0">
-            <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
-              <div>
-                <h5 className="fw-bold mb-1">Smart Filters</h5>
-                <div className="text-muted small">
-                  Narrow results by borrower, status, tool, or date range.
-                </div>
+            <div>
+              <h5 className="fw-bold mb-1">Smart Filters</h5>
+              <div className="text-muted small">
+                Narrow results by borrower, status, tool, or date range.
               </div>
             </div>
           </div>
@@ -440,7 +413,7 @@ const OwnerBookingHistory = () => {
                 </div>
 
                 <div className="col-12">
-                  <div className="d-flex flex-wrap justify-content-end gap-2 pt-1">
+                  <div className="d-flex gap-2">
                     <button
                       className="btn btn-outline-secondary dashboard-btn"
                       type="button"
@@ -576,7 +549,6 @@ const OwnerBookingHistory = () => {
           </div>
         </div>
 
-        {/* Local page styling */}
         <style>{`
           .dashboard-input {
             min-height: 48px;
