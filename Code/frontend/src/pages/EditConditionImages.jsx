@@ -1,14 +1,26 @@
 // src/pages/EditConditionImages.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { itemsService, bookingsService, API_BASE } from "../services/api";
 
 const EditConditionImages = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const requestId = location.state?.requestId;
-  const type = location.state?.mode; // "checkout" | "return" | "view"
+  // Support BOTH router state and query params
+  const requestId =
+    location.state?.requestId ||
+    searchParams.get("requestId") ||
+    searchParams.get("id");
+
+  const type =
+    location.state?.mode ||
+    searchParams.get("mode") ||
+    "view"; // checkout | return | view
+
+  const source = location.state?.source || searchParams.get("source") || "";
+
   const isCheckout = type === "checkout";
   const isReturn = type === "return";
   const isViewOnly = type === "view";
@@ -22,10 +34,17 @@ const EditConditionImages = () => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
+  const backRoute =
+    source === "home"
+      ? "/"
+      : source === "owner-history"
+      ? "/owner-booking-history"
+      : "/requested-bookings";
+
   useEffect(() => {
     if (!requestId) {
       alert("Invalid request. Please try again.");
-      navigate("/requested-bookings");
+      navigate(backRoute);
       return;
     }
 
@@ -52,7 +71,7 @@ const EditConditionImages = () => {
     };
 
     fetchImages();
-  }, [requestId, navigate]);
+  }, [requestId, navigate, backRoute]);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -172,14 +191,19 @@ const EditConditionImages = () => {
               style={{ borderRadius: "18px", overflow: "hidden" }}
             >
               <div
-                className="bg-light d-flex align-items-center justify-content-center"
+                className="bg-light d-flex align-items-center justify-content-center p-2"
                 style={{ height: "220px" }}
               >
                 <img
                   src={getImageSrc(img)}
                   alt={`${keyPrefix} ${idx + 1}`}
                   className="w-100 h-100"
-                  style={{ objectFit: "cover" }}
+                  style={{
+                    objectFit: "contain",
+                    objectPosition: "center",
+                    borderRadius: "12px",
+                    background: "#fff",
+                  }}
                 />
               </div>
 
@@ -251,7 +275,7 @@ const EditConditionImages = () => {
 
               <button
                 className="btn btn-outline-secondary fw-semibold px-4"
-                onClick={() => navigate("/requested-bookings")}
+                onClick={() => navigate(backRoute)}
                 disabled={uploading}
               >
                 Back
@@ -404,7 +428,7 @@ const EditConditionImages = () => {
 
                     <button
                       className="btn btn-light fw-semibold py-2"
-                      onClick={() => navigate("/requested-bookings")}
+                      onClick={() => navigate(backRoute)}
                       disabled={uploading}
                       style={{ borderRadius: "14px", border: "1px solid #dee2e6" }}
                     >

@@ -488,6 +488,7 @@ const OwnerBookingHistory = () => {
                       <th className="border-0 px-3 py-3 text-muted fw-semibold">End</th>
                       <th className="border-0 px-3 py-3 text-muted fw-semibold">Status</th>
                       <th className="border-0 px-3 py-3 text-muted fw-semibold">Note</th>
+                      <th className="border-0 px-3 py-3 text-muted fw-semibold">Actions</th>
                     </tr>
                   </thead>
 
@@ -537,11 +538,13 @@ const OwnerBookingHistory = () => {
                                 "-"
                               )}
                             </div>
-
-                            {(r.status === "Returned" || r.status === "CheckedOut" || r.status === "Overdue") && (
+                          </td>
+                         
+                          <td className="px-3 py-3">
+                            {(r.status === "Returned" || r.status === "CheckedOut" || r.status === "Overdue") ? (
                               <button
                                 className="btn btn-outline-secondary btn-sm"
-                                style={{ borderRadius: "10px", fontWeight: 500 }}
+                                style={{ borderRadius: "10px", fontWeight: 500, whiteSpace: "nowrap" }}
                                 onClick={() =>
                                   navigate("/edit-condition-images", {
                                     state: {
@@ -553,6 +556,8 @@ const OwnerBookingHistory = () => {
                               >
                                 View Images
                               </button>
+                              ) : (
+                                 <span className="text-muted small">-</span>
                             )}
                           </td>
                         </tr>

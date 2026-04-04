@@ -239,11 +239,11 @@ const Home = () => {
     });
   };
 
-  // Checkout must go through image upload page first
+  // Go to checkout image upload page first
   const goToCheckoutImages = (requestId) => {
     if (!requestId) return;
 
-    navigate(`/edit-condition-images/${requestId}`, {
+    navigate(`/edit-condition-images?requestId=${requestId}&mode=checkout&source=home`, {
       state: {
         requestId,
         mode: "checkout",
@@ -252,11 +252,11 @@ const Home = () => {
     });
   };
 
-  // Return must also go through image upload page first
+  // Go to return image upload page first
   const goToReturnImages = (requestId) => {
     if (!requestId) return;
 
-    navigate(`/edit-condition-images/${requestId}`, {
+    navigate(`/edit-condition-images?requestId=${requestId}&mode=return&source=home`, {
       state: {
         requestId,
         mode: "return",
@@ -572,7 +572,6 @@ const Home = () => {
 
   return (
     <div className="container-fluid px-3 px-md-4 py-4 home-dashboard">
-      
       <style>{`
         .home-dashboard {
           --ts-border: #e9ecef;
@@ -704,13 +703,21 @@ const Home = () => {
           aspect-ratio: 16 / 10;
           margin-bottom: 0.75rem;
           border: 1px solid #edf0f2;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.5rem;
         }
 
+        /* Full image should fit inside the card */
         .home-dashboard .img-frame img {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain;
+          object-position: center;
           display: block;
+          border-radius: 12px;
+          background: #fff;
         }
 
         .home-dashboard .item-card p {
@@ -746,8 +753,8 @@ const Home = () => {
               {isAdmin
                 ? "Manage approvals, overdue tools, and activity from one place."
                 : isStaff
-                  ? "Review incoming requests and stay on top of today’s pickups and returns."
-                  : "Track your bookings and discover tools you may want to request next."}
+                ? "Review incoming requests and stay on top of today’s pickups and returns."
+                : "Track your bookings and discover tools you may want to request next."}
             </div>
           </div>
 
@@ -763,21 +770,21 @@ const Home = () => {
         </div>
       </div>
 
-     {loadError && (
-      <div className="alert alert-danger d-flex align-items-center justify-content-between mb-3">
-        <span><i className="bi bi-exclamation-triangle me-2"></i>{loadError}</span>
-        <button
-          className="btn btn-sm btn-outline-danger"
-          onClick={loadData}
-        >
-          Retry
-        </button>
-      </div>
-    )}
+      {loadError && (
+        <div className="alert alert-danger d-flex align-items-center justify-content-between mb-3">
+          <span><i className="bi bi-exclamation-triangle me-2"></i>{loadError}</span>
+          <button
+            className="btn btn-sm btn-outline-danger"
+            onClick={loadData}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
-    {loading ? (
-      <div className="dashboard-empty text-center py-5">Loading dashboard...</div>
-    ) : isAdmin ? (
+      {loading ? (
+        <div className="dashboard-empty text-center py-5">Loading dashboard...</div>
+      ) : isAdmin ? (
         <>
           <div className="row g-3 mb-4">
             <div className="col-12 col-lg-6">
