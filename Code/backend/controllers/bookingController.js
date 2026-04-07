@@ -207,10 +207,10 @@ const bookingController = {
       if (!isAdmin(req) && Number(r.owner_id) !== Number(req.user.userId))
         return res.status(403).json({ error: "Not allowed" });
       if (r.current_status !== "Pending")
-        return res.status(409).json({ error: `Cannot change status from ${r.current_status}.` });
+        return res.status(409).json({ error: `Cannot change status from ${r.status}.` });
 
       if (status === "Approved") {
-        const conflict = await BorrowRequest.hasConflict(r.item_id, r.requested_end, r.requested_start, request_id);
+        const conflict = await BorrowRequest.hasConflict(r.item_id, r.requested_start, r.requested_end, request_id);
         if (conflict)
           return res.status(409).json({ error: "Cannot approve. This item is already booked for an overlapping time range." });
       }
