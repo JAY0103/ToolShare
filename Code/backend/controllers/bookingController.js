@@ -206,7 +206,7 @@ const bookingController = {
 
       if (!isAdmin(req) && Number(r.owner_id) !== Number(req.user.userId))
         return res.status(403).json({ error: "Not allowed" });
-      if (r.current_status !== "Pending")
+      if (r.status !== "Pending")
         return res.status(409).json({ error: `Cannot change status from ${r.status}.` });
 
       if (status === "Approved") {
