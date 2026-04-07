@@ -147,11 +147,14 @@ const BorrowRequest = {
     return query(sql, params);
   },
 
-  updateStatus: (request_id, status, rejectionReason = null) =>
-    query(
+  updateStatus: (request_id, status, rejectionReason = null) => {
+    const id = Number(request_id);
+    if (!id) throw new Error("Invalid request id: " + request_id);
+    return query(
       "UPDATE borrowrequests SET status=?, rejectionReason=? WHERE request_id=?",
-      [status, rejectionReason, request_id]
-    ),
+      [status, rejectionReason, id]
+    );
+  },
 
   setCheckedOut: (request_id) =>
     query(
