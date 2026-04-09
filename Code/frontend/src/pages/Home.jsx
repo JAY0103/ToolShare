@@ -802,7 +802,7 @@ const Home = () => {
 
                   <button
                     className="btn btn-outline-dark btn-sm fw-bold"
-                    onClick={() => navigate("/requested-bookings")}
+                    onClick={() => navigate("/requested-bookings?status=Pending")}
                   >
                     View All
                   </button>
@@ -875,7 +875,7 @@ const Home = () => {
 
                   <button
                     className="btn btn-outline-dark btn-sm fw-bold"
-                    onClick={() => navigate("/owner-booking-history")}
+                    onClick={() => navigate("/requested-bookings?status=Overdue")}
                   >
                     View All
                   </button>
