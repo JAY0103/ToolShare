@@ -62,11 +62,15 @@ const itemController = {
   },
 
   addItem: async (req, res) => {
-    const { name, description, serial_number, category_id } = req.body;
+    const { name, description, serial_number, category_id, quantity } = req.body;
     const owner_id = req.user.userId;
 
     if (!name || !String(name).trim() || !description || !String(description).trim())
       return res.status(400).json({ error: "Name and description are required." });
+
+    if (quantity !== undefined && (isNaN(Number(quantity)) || Number(quantity) < 1)) {
+      return res.status(400).json({ error: "Quantity must be at least 1." });
+    }
 
     try {
       if (!isStaff(req)) return res.status(403).json({ error: "Only faculty/admin can add items." });
@@ -84,6 +88,7 @@ const itemController = {
         owner_id,
         serial_number: cleanedSerial,
         category_id:   category_id ? Number(category_id) : null,
+        quantity:      quantity ? Number(quantity) : 1,
       });
 
       res.json({ message: "Item added successfully" });

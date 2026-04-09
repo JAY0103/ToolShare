@@ -12,21 +12,28 @@ const Item = {
     `),
 
   getAvailable: (start, end) =>
-    query(
-      `SELECT i.*, u.username AS owner_name, c.name AS category_name
-       FROM items i
-       JOIN users u ON i.owner_id = u.user_id
-       LEFT JOIN categories c ON i.category_id = c.category_id
-       WHERE NOT EXISTS (
-         SELECT 1 FROM borrowrequests br
-         WHERE br.item_id = i.item_id
-           AND br.status IN ('Approved','CheckedOut','Overdue')
-           AND br.requested_start < ?
-           AND br.requested_end   > ?
-       )
-       ORDER BY i.item_id DESC`,
-      [end, start]
-    ),
+  query(
+    `
+    SELECT
+      i.*,
+      u.username AS owner_name,
+      c.name AS category_name,
+      COUNT(br.request_id) AS booked_quantity,
+      GREATEST(COALESCE(i.quantity, 1) - COUNT(br.request_id), 0) AS available_quantity
+    FROM items i
+    JOIN users u ON i.owner_id = u.user_id
+    LEFT JOIN categories c ON i.category_id = c.category_id
+    LEFT JOIN borrowrequests br
+      ON br.item_id = i.item_id
+      AND br.status IN ('Approved','CheckedOut','Overdue')
+      AND br.requested_start < ?
+      AND br.requested_end > ?
+    GROUP BY i.item_id
+    HAVING available_quantity > 0
+    ORDER BY i.item_id DESC
+    `,
+    [end, start]
+  ),
 
   getByOwner: (ownerId) =>
     query("SELECT item_id, name FROM items WHERE owner_id = ? ORDER BY name ASC", [ownerId]),
@@ -42,11 +49,11 @@ const Item = {
       (r) => r[0] || null
     ),
 
-  create: ({ name, description, image_url, owner_id, serial_number, category_id }) =>
+  create: ({ name, description, image_url, owner_id, serial_number, category_id, quantity }) =>
     query(
-      `INSERT INTO items (name, description, image_url, faculty_id, owner_id, serial_number, category_id)
-       VALUES (?, ?, ?, 1, ?, ?, ?)`,
-      [name, description, image_url, owner_id, serial_number || null, category_id || null]
+      `INSERT INTO items (name, description, image_url, faculty_id, owner_id, serial_number, category_id, quantity)
+       VALUES (?, ?, ?, 1, ?, ?, ?, ?)`,
+      [name, description, image_url, owner_id, serial_number || null, category_id || null, quantity || 1]
     ),
 
   update: ({ item_id, name, description, category_id, serial_number, quantity }) =>

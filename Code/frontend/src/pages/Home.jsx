@@ -1109,7 +1109,7 @@ const Home = () => {
 
                       const statusVal = getStatusValue(r);
                       const st = normStatus(statusVal);
-                      const canCancel = st === "pending";
+                      const canCancel = st === "pending" || st === "approved";
 
                       return (
                         <tr key={rid || `${r.item_id}-${r.requested_start}`}>
