@@ -679,8 +679,9 @@ const Home = () => {
 
         .home-dashboard .items-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(240px, 320px));
           gap: 1rem;
+          justify-content:start;
         }
 
         .home-dashboard .item-card {
